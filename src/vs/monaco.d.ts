@@ -3529,6 +3529,11 @@ declare namespace monaco.editor {
 		 */
 		wrapOnEscapedLineFeeds?: boolean;
 		/**
+		 * Controls text concealment: whether decorations may conceal text, i.e. remove it from
+		 * the rendered view, and how a replacement drawn in its place is capped.
+		 */
+		conceal?: IEditorConcealOptions;
+		/**
 		 * Configure word wrapping characters. A break will be introduced before these characters.
 		 */
 		wordWrapBreakBeforeCharacters?: string;
@@ -4476,6 +4481,26 @@ declare namespace monaco.editor {
 	}
 
 	/**
+	 * Configuration options for text concealment.
+	 */
+	export interface IEditorConcealOptions {
+		/**
+		 * Whether decorations may conceal text, i.e. hide it in the editor while leaving it in
+		 * the file. Defaults to true.
+		 */
+		enabled?: boolean;
+		/**
+		 * The longest replacement drawn in place of concealed text, measured per replacement in
+		 * grapheme clusters; a cut ends in `…`. `0` never truncates. Defaults to 43.
+		 */
+		maximumReplacementLength?: number;
+		/**
+		 * Whether concealment renders in a diff editor's panes. Defaults to false.
+		 */
+		inDiffEditor?: boolean;
+	}
+
+	/**
 	 * Configuration options for editor inlayHints
 	 */
 	export interface IEditorInlayHintsOptions {
@@ -5245,19 +5270,20 @@ declare namespace monaco.editor {
 		inertialScroll = 158,
 		inlayHints = 159,
 		wrapOnEscapedLineFeeds = 160,
-		effectiveCursorStyle = 161,
-		editorClassName = 162,
-		pixelRatio = 163,
-		tabFocusMode = 164,
-		layoutInfo = 165,
-		wrappingInfo = 166,
-		defaultColorDecorators = 167,
-		colorDecoratorsActivatedOn = 168,
-		inlineCompletionsAccessibilityVerbose = 169,
-		effectiveEditContext = 170,
-		scrollOnMiddleClick = 171,
-		effectiveAllowVariableFonts = 172,
-		doubleClickSelectsBlock = 173
+		conceal = 161,
+		effectiveCursorStyle = 162,
+		editorClassName = 163,
+		pixelRatio = 164,
+		tabFocusMode = 165,
+		layoutInfo = 166,
+		wrappingInfo = 167,
+		defaultColorDecorators = 168,
+		colorDecoratorsActivatedOn = 169,
+		inlineCompletionsAccessibilityVerbose = 170,
+		effectiveEditContext = 171,
+		scrollOnMiddleClick = 172,
+		effectiveAllowVariableFonts = 173,
+		doubleClickSelectsBlock = 174
 	}
 
 	export const EditorOptions: {
@@ -5424,6 +5450,7 @@ declare namespace monaco.editor {
 		wordWrapOverride1: IEditorOption<EditorOption.wordWrapOverride1, 'on' | 'off' | 'inherit'>;
 		wordWrapOverride2: IEditorOption<EditorOption.wordWrapOverride2, 'on' | 'off' | 'inherit'>;
 		wrapOnEscapedLineFeeds: IEditorOption<EditorOption.wrapOnEscapedLineFeeds, boolean>;
+		conceal: IEditorOption<EditorOption.conceal, Readonly<Required<IEditorConcealOptions>>>;
 		effectiveCursorStyle: IEditorOption<EditorOption.effectiveCursorStyle, TextEditorCursorStyle>;
 		editorClassName: IEditorOption<EditorOption.editorClassName, string>;
 		defaultColorDecorators: IEditorOption<EditorOption.defaultColorDecorators, 'auto' | 'always' | 'never'>;

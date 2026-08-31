@@ -374,6 +374,11 @@ export interface IEditorOptions {
 	 */
 	wrapOnEscapedLineFeeds?: boolean;
 	/**
+	 * Controls text concealment: whether decorations may conceal text, i.e. remove it from
+	 * the rendered view, and how a replacement drawn in its place is capped.
+	 */
+	conceal?: IEditorConcealOptions;
+	/**
 	 * Configure word wrapping characters. A break will be introduced before these characters.
 	 */
 	wordWrapBreakBeforeCharacters?: string;
@@ -3201,6 +3206,75 @@ class EditorStickyScroll extends BaseEditorOption<EditorOption.stickyScroll, IEd
 
 //#endregion
 
+//#region conceal
+
+/**
+ * Configuration options for text concealment.
+ */
+export interface IEditorConcealOptions {
+	/**
+	 * Whether decorations may conceal text, i.e. hide it in the editor while leaving it in
+	 * the file. Defaults to true.
+	 */
+	enabled?: boolean;
+	/**
+	 * The longest replacement drawn in place of concealed text, measured per replacement in
+	 * grapheme clusters; a cut ends in `…`. `0` never truncates. Defaults to 43.
+	 */
+	maximumReplacementLength?: number;
+	/**
+	 * Whether concealment renders in a diff editor's panes. Defaults to false.
+	 */
+	inDiffEditor?: boolean;
+}
+
+/**
+ * @internal
+ */
+export type EditorConcealOptions = Readonly<Required<IEditorConcealOptions>>;
+
+class EditorConceal extends BaseEditorOption<EditorOption.conceal, IEditorConcealOptions, EditorConcealOptions> {
+
+	constructor() {
+		const defaults: EditorConcealOptions = { enabled: true, maximumReplacementLength: 43, inDiffEditor: false };
+		super(
+			EditorOption.conceal, 'conceal', defaults,
+			{
+				'editor.conceal.enabled': {
+					type: 'boolean',
+					default: defaults.enabled,
+					description: nls.localize('conceal.enabled', "Controls whether extensions may conceal text, i.e. hide it in the editor while leaving it in the file.")
+				},
+				'editor.conceal.maximumReplacementLength': {
+					type: 'number',
+					default: defaults.maximumReplacementLength,
+					minimum: 0,
+					markdownDescription: nls.localize('conceal.maximumReplacementLength', "The longest replacement drawn in place of concealed text, per replacement; a cut ends in `…`. Set to `0` to never truncate.")
+				},
+				'editor.conceal.inDiffEditor': {
+					type: 'boolean',
+					default: defaults.inDiffEditor,
+					description: nls.localize('conceal.inDiffEditor', "Controls whether concealment renders in a diff editor's panes.")
+				}
+			}
+		);
+	}
+
+	public validate(_input: unknown): EditorConcealOptions {
+		if (!_input || typeof _input !== 'object') {
+			return this.defaultValue;
+		}
+		const input = _input as IEditorConcealOptions;
+		return {
+			enabled: boolean(input.enabled, this.defaultValue.enabled),
+			maximumReplacementLength: EditorIntOption.clampedInt(input.maximumReplacementLength, this.defaultValue.maximumReplacementLength, 0, Number.MAX_SAFE_INTEGER),
+			inDiffEditor: boolean(input.inDiffEditor, this.defaultValue.inDiffEditor),
+		};
+	}
+}
+
+//#endregion
+
 //#region inlayHints
 
 /**
@@ -5962,6 +6036,7 @@ export const enum EditorOption {
 	inertialScroll,
 	inlayHints,
 	wrapOnEscapedLineFeeds,
+	conceal,
 	// Leave these at the end (because they have dependencies!)
 	effectiveCursorStyle,
 	editorClassName,
@@ -6862,6 +6937,7 @@ export const EditorOptions = {
 		EditorOption.wrapOnEscapedLineFeeds, 'wrapOnEscapedLineFeeds', false,
 		{ markdownDescription: nls.localize('wrapOnEscapedLineFeeds', "Controls whether literal `\\n` shall trigger a wordWrap when `#editor.wordWrap#` is enabled.\n\nFor example:\n```c\nchar* str=\"hello\\nworld\"\n```\nwill be displayed as\n```c\nchar* str=\"hello\\n\n           world\"\n```") }
 	)),
+	conceal: register(new EditorConceal()),
 
 	// Leave these at the end (because they have dependencies!)
 	effectiveCursorStyle: register(new EffectiveCursorStyle()),
