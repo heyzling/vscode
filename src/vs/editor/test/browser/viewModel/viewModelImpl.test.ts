@@ -7,7 +7,7 @@ import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { Position } from '../../../common/core/position.js';
 import { Range } from '../../../common/core/range.js';
-import { EndOfLineSequence, PositionAffinity } from '../../../common/model.js';
+import { ConcealedTextCursorStop, EndOfLineSequence, PositionAffinity, TrackedRangeStickiness } from '../../../common/model.js';
 import { ViewEventHandler } from '../../../common/viewEventHandler.js';
 import { ViewEvent } from '../../../common/viewEvents.js';
 import { testViewModel } from './testViewModel.js';
@@ -352,6 +352,275 @@ suite('ViewModel', () => {
 				]);
 
 				assert.strictEqual(viewModel.getLineCount(), 11);
+			}
+		);
+	});
+
+	test('concealed text is left out of the view line', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [
+					{
+						// `#done`, columns 4 through 9.
+						range: new Range(1, 4, 1, 9),
+						options: {
+							description: 'test',
+							concealedText: {
+								replacement: { content: '°' }
+							}
+						}
+					},
+				]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now');
+
+				// The replacement has a side per end; everything strictly inside collapses onto the end.
+				const modelToView = (column: number) => viewModel.coordinatesConverter.convertModelPositionToViewPosition(new Position(1, column));
+				assert.deepStrictEqual(
+					[modelToView(4), modelToView(6), modelToView(9)],
+					[new Position(1, 4), new Position(1, 5), new Position(1, 5)]
+				);
+
+				const viewToModel = (column: number) => viewModel.coordinatesConverter.convertViewPositionToModelPosition(new Position(1, column));
+				assert.deepStrictEqual(
+					[viewToModel(3), viewToModel(4), viewToModel(5)],
+					[new Position(1, 3), new Position(1, 4), new Position(1, 9)]
+				);
+			}
+		);
+	});
+
+	test('a concealed range at the line start does not cost the line its number', () => {
+		// What the margin checks: the line's first model column is drawn on this row.
+		for (const cursorStop of [ConcealedTextCursorStop.After, ConcealedTextCursorStop.Before]) {
+			testViewModel(
+				[
+					'^ab12cd note text'
+				],
+				{},
+				(viewModel, model) => {
+					model.deltaDecorations([], [{
+						range: new Range(1, 1, 1, 9),
+						options: { description: 'test', concealedText: { cursorStop } }
+					}]);
+
+					const converter = viewModel.coordinatesConverter;
+					const modelPosition = converter.convertViewPositionToModelPosition(new Position(1, 1));
+					const firstRowOfLine = converter.convertModelPositionToViewPosition(new Position(modelPosition.lineNumber, 1)).lineNumber;
+					assert.strictEqual(firstRowOfLine, 1, `${cursorStop}: the line's first column is drawn on this row, so the margin keeps the number`);
+				}
+			);
+		}
+	});
+
+	test('a long replacement is cut at editor.conceal.maximumReplacementLength, per replacement', () => {
+		testViewModel(
+			[
+				'abcd efgh'
+			],
+			{ conceal: { maximumReplacementLength: 5 } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [
+					{
+						range: new Range(1, 1, 1, 5),
+						options: { description: 'test', concealedText: { replacement: { content: 'longer than five' } } }
+					},
+					{
+						// The cap is per replacement, not per line.
+						range: new Range(1, 6, 1, 10),
+						options: { description: 'test', concealedText: { replacement: { content: 'short' } } }
+					},
+				]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'longe… short');
+			}
+		);
+	});
+
+	test('the replacement cap counts graphemes, so a cut never splits a joined emoji', () => {
+		testViewModel(
+			[
+				'abcd'
+			],
+			{ conceal: { maximumReplacementLength: 2 } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 1, 1, 5),
+					options: { description: 'test', concealedText: { replacement: { content: '👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦' } } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), '👨‍👩‍👧‍👦👨‍👩‍👧‍👦…');
+			}
+		);
+	});
+
+	test('editor.conceal.maximumReplacementLength 0 never cuts', () => {
+		testViewModel(
+			[
+				'abcd'
+			],
+			{ conceal: { maximumReplacementLength: 0 } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 1, 1, 5),
+					options: { description: 'test', concealedText: { replacement: { content: 'x'.repeat(100) } } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'x'.repeat(100));
+			}
+		);
+	});
+
+	test('preserveWidth pads a narrower replacement, so following text never moves', () => {
+		testViewModel(
+			[
+				'K=Qwerty123 #c'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 3, 1, 12),
+					options: { description: 'test', concealedText: { replacement: { content: '••••' }, preserveWidth: true } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'K=••••      #c');
+			}
+		);
+	});
+
+	test('preserveWidth clips a wider replacement to the hidden width, marked with an ellipsis', () => {
+		testViewModel(
+			[
+				'x t(\'a\') y'
+			],
+			{ conceal: { maximumReplacementLength: 2 } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					// Six hidden cells, eleven drawn; the cap setting does not apply.
+					range: new Range(1, 3, 1, 9),
+					options: { description: 'test', concealedText: { replacement: { content: 'Place order' }, preserveWidth: true } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'x Place… y');
+			}
+		);
+	});
+
+	test('preserveWidth measures cells, not characters', () => {
+		testViewModel(
+			[
+				'abcd tail'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					// `✅` is one grapheme but two cells.
+					range: new Range(1, 1, 1, 5),
+					options: { description: 'test', concealedText: { replacement: { content: '✅' }, preserveWidth: true } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), '✅   tail');
+			}
+		);
+	});
+
+	test('per-range replacements at scale keep decoration set and projection bounded', () => {
+		const lines: string[] = [];
+		for (let i = 0; i < 5000; i++) {
+			lines.push(`key_${String(i).padStart(4, '0')} tail`);
+		}
+		testViewModel(lines, {}, (viewModel, model) => {
+			const started = Date.now();
+			model.deltaDecorations([], lines.map((_, i) => ({
+				range: new Range(i + 1, 1, i + 1, 9),
+				options: { description: 'test', concealedText: { replacement: { content: `Value ${i}` } } }
+			})));
+			for (let line = 1; line <= 5000; line += 250) {
+				viewModel.getLineContent(line);
+			}
+			const elapsed = Date.now() - started;
+			assert.deepStrictEqual(viewModel.getLineContent(1), 'Value 0 tail');
+			assert.deepStrictEqual(viewModel.getLineContent(5000), 'Value 4999 tail');
+			assert.ok(elapsed < 2000, `5000 per-range replacements set and projected in ${elapsed}ms`);
+		});
+	});
+
+	test('an edit inside a concealed range reveals it until its owner applies the decoration again', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				const decorate = () => model.deltaDecorations(model.getAllDecorations().map(d => d.id), [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { replacement: { content: '°' } } }
+				}]);
+				decorate();
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now');
+
+				model.applyEdits([{ range: new Range(1, 5, 1, 6), text: 'X' }]);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is #Xone by now', 'the hidden text changed, so it stops being hidden');
+
+				decorate();
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now');
+			}
+		);
+	});
+
+	test('an edit beside a concealed range does not reveal it', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { replacement: { content: '°' } } }
+				}]);
+
+				model.applyEdits([{ range: new Range(1, 9, 1, 9), text: 'Y' }]);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is °Y by now', 'text typed at the boundary is outside the hidden text');
+			}
+		);
+	});
+
+	test('revealOnEdit false keeps concealing through an edit', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { replacement: { content: '°' }, revealOnEdit: false } }
+				}]);
+
+				model.applyEdits([{ range: new Range(1, 5, 1, 6), text: 'X' }]);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now', 'the owner opted out: it makes the edit itself and re-parses');
+			}
+		);
+	});
+
+	test('editor.conceal.enabled false leaves the view line as the document line', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{ conceal: { enabled: false } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', concealedText: { replacement: { content: '°' } } }
+				}]);
+
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is #done by now');
 			}
 		);
 	});

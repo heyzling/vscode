@@ -69,6 +69,9 @@ function getLineBreakData(factory: ILineBreaksComputerFactory, tabSize: number, 
 		},
 		getLineInjectedText(lineNumber) {
 			return null;
+		},
+		getLineConcealedText(lineNumber) {
+			return null;
 		}
 	};
 	const lineBreaksComputer = factory.createLineBreaksComputer(context, fontInfo, tabSize, breakAfter, wrappingIndent, wordBreak, wrapOnEscapedLineFeeds);

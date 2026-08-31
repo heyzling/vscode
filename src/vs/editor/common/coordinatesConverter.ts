@@ -9,7 +9,7 @@ import { ITextModel, PositionAffinity } from './model.js';
 
 export interface ICoordinatesConverter {
 	// View -> Model conversion and related methods
-	convertViewPositionToModelPosition(viewPosition: Position): Position;
+	convertViewPositionToModelPosition(viewPosition: Position, affinity?: PositionAffinity): Position;
 	convertViewRangeToModelRange(viewRange: Range): Range;
 	validateViewPosition(viewPosition: Position, expectedModelPosition: Position): Position;
 	validateViewRange(viewRange: Range, expectedModelRange: Range): Range;
@@ -47,7 +47,7 @@ export class IdentityCoordinatesConverter implements ICoordinatesConverter {
 
 	// View -> Model conversion and related methods
 
-	public convertViewPositionToModelPosition(viewPosition: Position): Position {
+	public convertViewPositionToModelPosition(viewPosition: Position, _affinity?: PositionAffinity): Position {
 		return this._validPosition(viewPosition);
 	}
 

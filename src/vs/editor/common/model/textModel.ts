@@ -37,7 +37,7 @@ import { ILanguageConfigurationService } from '../languages/languageConfiguratio
 import * as model from '../model.js';
 import { IBracketPairsTextModelPart } from '../textModelBracketPairs.js';
 import { EditSources, TextModelEditSource } from '../textModelEditSource.js';
-import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelOptionsChangedEvent, InternalModelContentChangeEvent, LineInjectedText, ModelFontChanged, ModelFontChangedEvent, ModelInjectedTextChangedEvent, ModelLineHeightChanged, ModelLineHeightChangedEvent, ModelRawChange, ModelRawContentChangedEvent, ModelRawEOLChanged, ModelRawFlush, ModelRawLineChanged, ModelRawLinesDeleted, ModelRawLinesInserted } from '../textModelEvents.js';
+import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelOptionsChangedEvent, InternalModelContentChangeEvent, LineConcealedText, LineInjectedText, ModelFontChanged, ModelFontChangedEvent, ModelInjectedTextChangedEvent, ModelLineHeightChanged, ModelLineHeightChangedEvent, ModelRawChange, ModelRawContentChangedEvent, ModelRawEOLChanged, ModelRawFlush, ModelRawLineChanged, ModelRawLinesDeleted, ModelRawLinesInserted } from '../textModelEvents.js';
 import { IGuidesTextModelPart } from '../textModelGuides.js';
 import { ITokenizationTextModelPart } from '../tokenizationTextModelPart.js';
 import { LineTokens, TokenArray } from '../tokens/lineTokens.js';
@@ -1516,6 +1516,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			// and we want to read the final decorations
 			for (let i = 0, len = contentChanges.length; i < len; i++) {
 				const change = contentChanges[i];
+				this._markConcealedTextRevealedByEdit(change.rangeOffset, change.rangeOffset + change.rangeLength);
 				this._decorationsTree.acceptReplace(change.rangeOffset, change.rangeLength, change.text.length, change.forceMoveMarkers);
 			}
 
@@ -1860,6 +1861,43 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		return LineInjectedText.fromDecorations(result).filter(t => t.lineNumber === lineNumber);
 	}
 
+	public getLineConcealedText(lineNumber: number, ownerId: number = 0): LineConcealedText[] {
+		const startOffset = this._buffer.getOffsetAt(lineNumber, 1);
+		const endOffset = startOffset + this._buffer.getLineLength(lineNumber);
+
+		let result = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
+		if (this._concealRevealedDecorationIds.size > 0) {
+			result = result.filter(d => !this._concealRevealedDecorationIds.has(d.id));
+		}
+		return LineConcealedText.fromDecorations(result, lineNumber);
+	}
+
+	private readonly _concealRevealedDecorationIds = new Set<string>();
+
+	/**
+	 * Records the concealed ranges an edit changed inside, so they stop being concealed until
+	 * their decoration is applied again (`revealOnEdit`).
+	 */
+	private _markConcealedTextRevealedByEdit(startOffset: number, endOffset: number): void {
+		const candidates = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, 0);
+		for (const decoration of candidates) {
+			const concealedText = decoration.options.concealedText;
+			if (!concealedText || concealedText.revealOnEdit === false) {
+				continue;
+			}
+			const range = decoration.range;
+			const decorationStart = this._buffer.getOffsetAt(range.startLineNumber, range.startColumn);
+			const decorationEnd = this._buffer.getOffsetAt(range.endLineNumber, range.endColumn);
+			// An insertion at a boundary is beside the hidden text, not inside it.
+			const inside = startOffset === endOffset
+				? (startOffset > decorationStart && startOffset < decorationEnd)
+				: (startOffset < decorationEnd && endOffset > decorationStart);
+			if (inside) {
+				this._concealRevealedDecorationIds.add(decoration.id);
+			}
+		}
+	}
+
 	public getFontDecorationsInRange(range: IRange, ownerId: number = 0): model.IModelDecoration[] {
 		const startOffset = this._buffer.getOffsetAt(range.startLineNumber, range.startColumn);
 		const endOffset = this._buffer.getOffsetAt(range.endLineNumber, range.endColumn);
@@ -1901,6 +1939,10 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			const oldRange = this.getDecorationRange(decorationId);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(oldRange!.startLineNumber);
 		}
+		if (node.options.concealedText) {
+			const oldRange = this.getDecorationRange(decorationId);
+			this._onDidChangeDecorations.recordLineAffectedByInjectedText(oldRange!.startLineNumber);
+		}
 		if (node.options.lineHeight !== null) {
 			const oldRange = this.getDecorationRange(decorationId);
 			this._onDidChangeDecorations.recordLineAffectedByLineHeightChange(ownerId, decorationId, oldRange!.startLineNumber, null);
@@ -1923,6 +1965,9 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.endLineNumber);
 		}
 		if (node.options.before) {
+			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
+		}
+		if (node.options.concealedText) {
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
 		}
 		if (node.options.lineHeight !== null) {
@@ -1950,6 +1995,10 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.endLineNumber);
 		}
 		if (node.options.before || options.before) {
+			const nodeRange = this._decorationsTree.getNodeRange(this, node);
+			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
+		}
+		if (node.options.concealedText || options.concealedText) {
 			const nodeRange = this._decorationsTree.getNodeRange(this, node);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
 		}
@@ -1999,11 +2048,16 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 
 					// (2) remove the node from the tree (if it exists)
 					if (node) {
+						this._concealRevealedDecorationIds.delete(decorationId);
 						if (node.options.after) {
 							const nodeRange = this._decorationsTree.getNodeRange(this, node);
 							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.endLineNumber);
 						}
 						if (node.options.before) {
+							const nodeRange = this._decorationsTree.getNodeRange(this, node);
+							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
+						}
+						if (node.options.concealedText) {
 							const nodeRange = this._decorationsTree.getNodeRange(this, node);
 							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
 						}
@@ -2047,6 +2101,9 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.endLineNumber);
 					}
 					if (node.options.before) {
+						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
+					}
+					if (node.options.concealedText) {
 						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
 					}
 					if (node.options.lineHeight !== null) {
@@ -2182,11 +2239,11 @@ function isNodeInOverviewRuler(node: IntervalNode): boolean {
 }
 
 function isOptionsInjectedText(options: ModelDecorationOptions): boolean {
-	return !!options.after || !!options.before;
+	return !!options.after || !!options.before || !!options.concealedText;
 }
 
 function isNodeInjectedText(node: IntervalNode): boolean {
-	return !!node.options.after || !!node.options.before;
+	return !!node.options.after || !!node.options.before || !!node.options.concealedText;
 }
 
 export interface IDecorationsTreesHost {
@@ -2476,6 +2533,29 @@ export class ModelDecorationInjectedTextOptions implements model.InjectedTextOpt
 	}
 }
 
+export class ModelDecorationConcealedTextOptions implements model.ConcealedTextOptions {
+	public static from(options: model.ConcealedTextOptions): ModelDecorationConcealedTextOptions {
+		if (options instanceof ModelDecorationConcealedTextOptions) {
+			return options;
+		}
+		return new ModelDecorationConcealedTextOptions(options);
+	}
+
+	readonly replacement: ModelDecorationInjectedTextOptions | null;
+	readonly cursorStop: model.ConcealedTextCursorStop;
+	readonly preserveWidth: boolean;
+	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
+	readonly revealOnEdit: boolean;
+
+	private constructor(options: model.ConcealedTextOptions) {
+		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
+		this.cursorStop = options.cursorStop ?? model.ConcealedTextCursorStop.Auto;
+		this.preserveWidth = options.preserveWidth ?? false;
+		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
+		this.revealOnEdit = options.revealOnEdit ?? true;
+	}
+}
+
 export class ModelDecorationOptions implements model.IModelDecorationOptions {
 
 	public static EMPTY: ModelDecorationOptions;
@@ -2519,6 +2599,7 @@ export class ModelDecorationOptions implements model.IModelDecorationOptions {
 	readonly afterContentClassName: string | null;
 	readonly after: ModelDecorationInjectedTextOptions | null;
 	readonly before: ModelDecorationInjectedTextOptions | null;
+	readonly concealedText: ModelDecorationConcealedTextOptions | null;
 	readonly hideInCommentTokens: boolean | null;
 	readonly hideInStringTokens: boolean | null;
 	readonly affectsFont: boolean | null;
@@ -2558,6 +2639,7 @@ export class ModelDecorationOptions implements model.IModelDecorationOptions {
 		this.afterContentClassName = options.afterContentClassName ? cleanClassName(options.afterContentClassName) : null;
 		this.after = options.after ? ModelDecorationInjectedTextOptions.from(options.after) : null;
 		this.before = options.before ? ModelDecorationInjectedTextOptions.from(options.before) : null;
+		this.concealedText = options.concealedText ? ModelDecorationConcealedTextOptions.from(options.concealedText) : null;
 		this.hideInCommentTokens = options.hideInCommentTokens ?? false;
 		this.hideInStringTokens = options.hideInStringTokens ?? false;
 		this.textDirection = options.textDirection ?? null;

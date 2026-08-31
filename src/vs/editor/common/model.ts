@@ -19,7 +19,7 @@ import { IWordAtPosition } from './core/wordHelper.js';
 import { FormattingOptions } from './languages.js';
 import { ILanguageSelection } from './languages/language.js';
 import { IBracketPairsTextModelPart } from './textModelBracketPairs.js';
-import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelLanguageChangedEvent, IModelLanguageConfigurationChangedEvent, IModelOptionsChangedEvent, IModelTokensChangedEvent, LineInjectedText, ModelFontChangedEvent, ModelLineHeightChangedEvent } from './textModelEvents.js';
+import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelLanguageChangedEvent, IModelLanguageConfigurationChangedEvent, IModelOptionsChangedEvent, IModelTokensChangedEvent, LineConcealedText, LineInjectedText, ModelFontChangedEvent, ModelLineHeightChangedEvent } from './textModelEvents.js';
 import { IModelContentChange } from './model/mirrorTextModel.js';
 import { IGuidesTextModelPart } from './textModelGuides.js';
 import { ITokenizationTextModelPart } from './tokenizationTextModelPart.js';
@@ -291,6 +291,13 @@ export interface IModelDecorationOptions {
 	before?: InjectedTextOptions | null;
 
 	/**
+	 * If set, the text in the range is concealed: it is removed from the view without
+	 * changing the underlying document. Only single line ranges are concealed.
+	 * @internal
+	 */
+	concealedText?: ConcealedTextOptions | null;
+
+	/**
 	 * If set, this decoration will not be rendered for comment tokens.
 	 * @internal
 	*/
@@ -365,6 +372,86 @@ export enum InjectedTextCursorStops {
 	Right,
 	Left,
 	None
+}
+
+/**
+ * Configures text of the underlying document that is concealed in the view. Concealed text is
+ * not rendered and holds no cursor positions; it is still saved, searched and copied.
+ * @internal
+*/
+export interface ConcealedTextOptions {
+	/**
+	 * If set, this text is rendered in place of the concealed text. It is injected into the
+	 * view, so it holds no document positions of its own.
+	 */
+	readonly replacement?: InjectedTextOptions | null;
+
+	/**
+	 * Which end of the concealed range the one place it collapses to stands for. Only read
+	 * when there is no {@link replacement}.
+	 *
+	 * Defaults to {@link ConcealedTextCursorStop.Auto}.
+	 */
+	readonly cursorStop?: ConcealedTextCursorStop;
+
+	/**
+	 * If set, the {@link replacement} is drawn at the rendered width of the concealed text:
+	 * padded when narrower, clipped with `…` when wider. Defaults to false.
+	 */
+	readonly preserveWidth?: boolean;
+
+	/**
+	 * What Backspace, Delete and the word deletes do at the concealed range.
+	 *
+	 * Defaults to {@link ConcealedTextDeletionPolicy.Atomic}.
+	 */
+	readonly deletionPolicy?: ConcealedTextDeletionPolicy;
+
+	/**
+	 * Whether an edit inside the concealed range stops it being concealed until the decoration
+	 * is applied again. Defaults to true.
+	 */
+	readonly revealOnEdit?: boolean;
+}
+
+/**
+ * What Backspace, Delete and the word deletes do at a concealed range.
+ * @internal
+ */
+export enum ConcealedTextDeletionPolicy {
+	/**
+	 * The whole range is deleted, as one undo step.
+	 */
+	Atomic,
+	/**
+	 * The keys act on the hidden characters as if they were visible. Only meaningful with a
+	 * replacement; with nothing drawn this acts as {@link Atomic}.
+	 */
+	Passthrough,
+	/**
+	 * Deletion never reaches the concealed text: the keys step over the range.
+	 */
+	Protect,
+}
+
+/**
+ * Which end of a concealed range with nothing drawn its single caret stop stands for.
+ * @internal
+ */
+export enum ConcealedTextCursorStop {
+	/**
+	 * The end of the range: text typed there lands after the hidden text.
+	 */
+	After,
+	/**
+	 * The start of the range: text typed there lands before the hidden text.
+	 */
+	Before,
+	/**
+	 * The end the caret was travelling towards when it crossed into the range. A caret already
+	 * at either end stays; an arrival with no direction falls back to {@link After}.
+	 */
+	Auto
 }
 
 /**
@@ -861,6 +948,12 @@ export interface ITextModel {
 	 * @internal
 	 */
 	getLineInjectedText(lineNumber: number, ownerId?: number): LineInjectedText[];
+
+	/**
+	 * Get the concealed text ranges for a certain line, sorted and non-overlapping.
+	 * @internal
+	 */
+	getLineConcealedText(lineNumber: number, ownerId?: number): LineConcealedText[];
 
 	/**
 	 * Get the text length for a certain line.

@@ -229,4 +229,77 @@ suite('Editor ViewModel - LineBreakData', () => {
 			testInverse(data);
 		});
 	});
+
+	suite('Concealed Text (no replacement)', () => {
+		// `0123456789...`, with `34567` concealed: the view shows `012` then `89...`.
+		const data = new ModelLineProjectionData(null, null, [95, 100], [], 0, [3], [5]);
+
+		test('getInputOffsetOfOutputPosition', () => {
+			// Offset 3 is the place the concealed range collapsed to. It maps to the range's
+			// end, so that text typed there lands after the concealed text.
+			assert.deepStrictEqual(
+				getInputOffsets(data, 0),
+				[0, 1, 2, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+			);
+		});
+
+		test('getOutputPositionOfInputOffset', () => {
+			// Every offset within the concealed range collapses onto the same view position.
+			assert.deepStrictEqual(getOutputOffsets(data, PositionAffinity.None), [
+				'0:0', '0:1', '0:2', '0:3', '0:3', '0:3', '0:3', '0:3', '0:3', '0:4',
+				'0:5', '0:6', '0:7', '0:8', '0:9', '0:10', '0:11', '0:12', '0:13', '0:14',
+				'0:15', '0:16', '0:17', '0:18', '0:19',
+			]);
+		});
+	});
+
+	suite('Concealed Text (with replacement)', () => {
+		// The replacement is injected at the start of the concealed range, which gives the
+		// place it collapses to a left and a right side.
+		const data = new ModelLineProjectionData([3], mapTextToInjectedTextOptions(['°']), [95, 100], [], 0, [3], [5]);
+
+		test('getInputOffsetOfOutputPosition', () => {
+			// View offset 3 is before the replacement (the start of the concealed range), 4 is
+			// after it (the end of the range).
+			assert.deepStrictEqual(
+				getInputOffsets(data, 0),
+				[0, 1, 2, 3, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+			);
+		});
+
+		test('getOutputPositionOfInputOffset', () => {
+			assert.deepStrictEqual(getOutputOffsets(data, PositionAffinity.None), [
+				'0:0', '0:1', '0:2', '0:3', '0:4', '0:4', '0:4', '0:4', '0:4', '0:5',
+				'0:6', '0:7', '0:8', '0:9', '0:10', '0:11', '0:12', '0:13', '0:14', '0:15',
+				'0:16', '0:17', '0:18', '0:19', '0:20',
+			]);
+		});
+
+		test('normalization keeps the cursor out of the replacement', () => {
+			assert.deepStrictEqual(
+				sequence(6).map(v => data.normalizeOutputPosition(0, v, PositionAffinity.None).toString()),
+				['0:0', '0:1', '0:2', '0:3', '0:4', '0:5']
+			);
+		});
+	});
+
+	suite('Concealed Text (two ranges, injection in between)', () => {
+		// `ab(cd)ef(gh)ij`, concealing `cd` and `gh`, with text injected at offset 6.
+		const data = new ModelLineProjectionData([6], mapTextToInjectedTextOptions(['!']), [95, 100], [], 0, [2, 6], [2, 2]);
+
+		test('getInputOffsetOfOutputPosition', () => {
+			assert.deepStrictEqual(
+				getInputOffsets(data, 0),
+				[0, 1, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+			);
+		});
+
+		test('getOutputPositionOfInputOffset', () => {
+			assert.deepStrictEqual(getOutputOffsets(data, PositionAffinity.None), [
+				'0:0', '0:1', '0:2', '0:2', '0:2', '0:3', '0:4', '0:5', '0:5', '0:6',
+				'0:7', '0:8', '0:9', '0:10', '0:11', '0:12', '0:13', '0:14', '0:15', '0:16',
+				'0:17', '0:18', '0:19', '0:20', '0:21',
+			]);
+		});
+	});
 });

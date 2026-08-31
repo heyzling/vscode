@@ -10,9 +10,7 @@ import { assertReturnsDefined } from '../../../base/common/types.js';
 import { applyFontInfo } from '../config/domFontInfo.js';
 import { WrappingIndent } from '../../common/config/editorOptions.js';
 import { StringBuilder } from '../../common/core/stringBuilder.js';
-import { InjectedTextOptions } from '../../common/model.js';
-import { ILineBreaksComputer, ILineBreaksComputerContext, ILineBreaksComputerFactory, ModelLineProjectionData } from '../../common/modelLineProjectionData.js';
-import { LineInjectedText } from '../../common/textModelEvents.js';
+import { applyProjectedLineChanges, computeProjectedLineChanges, ILineBreaksComputer, ILineBreaksComputerContext, ILineBreaksComputerFactory, ModelLineProjectionData } from '../../common/modelLineProjectionData.js';
 import { FontInfo } from '../../common/config/fontInfo.js';
 
 const ttPolicy = createTrustedTypesPolicy('domLineBreaksComputer', { createHTML: value => value });
@@ -41,17 +39,13 @@ export class DOMLineBreaksComputerFactory implements ILineBreaksComputerFactory 
 
 function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerContext, lineNumbers: number[], fontInfo: FontInfo, tabSize: number, firstLineBreakColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): (ModelLineProjectionData | null)[] {
 	function createEmptyLineBreakWithPossiblyInjectedText(lineNumber: number): ModelLineProjectionData | null {
-		const injectedTexts = context.getLineInjectedText(lineNumber);
-		if (injectedTexts) {
-			const lineContent = context.getLineContent(lineNumber);
-			const lineText = LineInjectedText.applyInjectedText(lineContent, injectedTexts);
-
-			const injectionOptions = injectedTexts.map(t => t.options);
-			const injectionOffsets = injectedTexts.map(text => text.column - 1);
+		const changes = computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber));
+		if (changes.injectionOptions || changes.concealOffsets) {
+			const lineText = applyProjectedLineChanges(context.getLineContent(lineNumber), changes);
 
 			// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 			// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-			return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0);
+			return new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, [lineText.length], [], 0, changes.concealOffsets, changes.concealLengths, changes.concealStops);
 		} else {
 			return null;
 		}
@@ -81,7 +75,7 @@ function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerCont
 	const allVisibleColumns: number[][] = [];
 	for (let i = 0; i < lineNumbers.length; i++) {
 		const lineNumber = lineNumbers[i];
-		const lineContent = LineInjectedText.applyInjectedText(context.getLineContent(lineNumber), context.getLineInjectedText(lineNumber));
+		const lineContent = applyProjectedLineChanges(context.getLineContent(lineNumber), computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber)));
 
 		let firstNonWhitespaceIndex = 0;
 		let wrappedTextIndentLength = 0;
@@ -171,18 +165,9 @@ function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerCont
 			}
 		}
 
-		let injectionOptions: InjectedTextOptions[] | null;
-		let injectionOffsets: number[] | null;
-		const curInjectedTexts = context.getLineInjectedText(lineNumber);
-		if (curInjectedTexts) {
-			injectionOptions = curInjectedTexts.map(t => t.options);
-			injectionOffsets = curInjectedTexts.map(text => text.column - 1);
-		} else {
-			injectionOptions = null;
-			injectionOffsets = null;
-		}
+		const changes = computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber));
 
-		result[i] = new ModelLineProjectionData(injectionOffsets, injectionOptions, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength);
+		result[i] = new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength, changes.concealOffsets, changes.concealLengths, changes.concealStops);
 	}
 
 	containerDomNode.remove();

@@ -117,7 +117,8 @@ suite('Editor ViewModel - SplitLinesCollection', () => {
 			wrappingInfo.wrappingColumn,
 			wrappingIndent,
 			wordBreak,
-			wrapOnEscapedLineFeeds
+			wrapOnEscapedLineFeeds,
+			{ enabled: true, maximumReplacementLength: 43, inDiffEditor: false }
 		);
 
 		callback(model, linesCollection);
@@ -965,7 +966,8 @@ suite('SplitLinesCollection', () => {
 			wrappingInfo.wrappingColumn,
 			wrappingIndent,
 			wordBreak,
-			wrapOnEscapedLineFeeds
+			wrapOnEscapedLineFeeds,
+			{ enabled: true, maximumReplacementLength: 43, inDiffEditor: false }
 		);
 
 		callback(linesCollection);

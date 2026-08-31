@@ -5,6 +5,7 @@
 
 import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
+import { OffsetRange } from '../../../common/core/ranges/offsetRange.js';
 import { MetadataConsts } from '../../../common/encodedTokenAttributes.js';
 import { LanguageIdCodec } from '../../../common/services/languagesRegistry.js';
 import { IViewLineTokens, LineTokens } from '../../../common/tokens/lineTokens.js';
@@ -94,6 +95,43 @@ suite('LineTokens', () => {
 		]);
 
 		assert.strictEqual(renderLineTokens(lineTokens2), 'Hello (32768)world, (65536)this (98304)is (131072)a (163840)lovely (196608)da(229376)1(0)y(229376)2(0)');
+	});
+
+	test('withDeleted (inside one token, and a whole token)', () => {
+		const lineTokens = createTestLineTokens();
+
+		const lineTokens2 = lineTokens.withDeleted([
+			new OffsetRange(0, 3), // 'Hel'
+			new OffsetRange(6, 13), // 'world, ', the whole second token
+		]);
+
+		assert.strictEqual(renderLineTokens(lineTokens2), 'lo (32768)this (98304)is (131072)a (163840)lovely (196608)day(229376)');
+	});
+
+	test('withDeleted (spanning several tokens, and at the end)', () => {
+		const lineTokens = createTestLineTokens();
+
+		const lineTokens2 = lineTokens.withDeleted([
+			new OffsetRange(3, 20), // from inside token 0 to inside token 3
+			new OffsetRange(30, 33), // 'day', the last token
+		]);
+
+		assert.strictEqual(renderLineTokens(lineTokens2), 'Hel(32768) (131072)a (163840)lovely (196608)');
+	});
+
+	test('withDeleted (everything)', () => {
+		const lineTokens = createTestLineTokens();
+
+		const lineTokens2 = lineTokens.withDeleted([new OffsetRange(0, 33)]);
+
+		assert.strictEqual(renderLineTokens(lineTokens2), '(229376)');
+		assert.strictEqual(lineTokens2.getLineContent(), '');
+	});
+
+	test('withDeleted (nothing)', () => {
+		const lineTokens = createTestLineTokens();
+
+		assert.strictEqual(lineTokens.withDeleted([]), lineTokens);
 	});
 
 	test('basics', () => {

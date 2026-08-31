@@ -262,6 +262,59 @@ export class LineTokens implements IViewLineTokens {
 		return new LineTokens(new Uint32Array(newTokens), text, this.languageIdCodec);
 	}
 
+	/**
+	 * @pure
+	 * @param deleteRanges Must be sorted by start offset and must not overlap.
+	*/
+	public withDeleted(deleteRanges: OffsetRange[]): LineTokens {
+		if (deleteRanges.length === 0) {
+			return this;
+		}
+
+		let text = '';
+		const newTokens = new Array<number>();
+
+		let offset = 0;
+		let nextDeleteRangeIdx = 0;
+		let lastMetadata = LineTokens.defaultTokenMetadata;
+
+		for (let tokenIdx = 0; tokenIdx < this._tokensCount; tokenIdx++) {
+			const tokenEndOffset = this._tokens[tokenIdx << 1];
+			const metadata = this._tokens[(tokenIdx << 1) + 1];
+
+			// A range may span several tokens; consume it once it ends within this one.
+			while (offset < tokenEndOffset) {
+				const deleteRange = nextDeleteRangeIdx < deleteRanges.length ? deleteRanges[nextDeleteRangeIdx] : null;
+				if (!deleteRange || deleteRange.start >= tokenEndOffset) {
+					text += this._text.substring(offset, tokenEndOffset);
+					offset = tokenEndOffset;
+					break;
+				}
+				if (deleteRange.start > offset) {
+					text += this._text.substring(offset, deleteRange.start);
+				}
+				offset = Math.min(deleteRange.endExclusive, tokenEndOffset);
+				if (deleteRange.endExclusive <= tokenEndOffset) {
+					nextDeleteRangeIdx++;
+				}
+			}
+
+			// Drop emptied tokens: end offsets must stay strictly increasing.
+			const previousEndOffset = newTokens.length > 0 ? newTokens[newTokens.length - 2] : 0;
+			if (text.length > previousEndOffset) {
+				newTokens.push(text.length, metadata);
+			}
+			lastMetadata = metadata;
+		}
+
+		if (newTokens.length === 0) {
+			// Everything was concealed: an empty line still has one (empty) token.
+			newTokens.push(0, lastMetadata);
+		}
+
+		return new LineTokens(new Uint32Array(newTokens), text, this.languageIdCodec);
+	}
+
 	public getTokensInRange(range: OffsetRange): TokenArray {
 		const builder = new TokenArrayBuilder();
 

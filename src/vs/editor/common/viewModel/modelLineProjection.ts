@@ -7,8 +7,7 @@ import { LineTokens } from '../tokens/lineTokens.js';
 import { Position } from '../core/position.js';
 import { IRange } from '../core/range.js';
 import { EndOfLinePreference, ITextModel, PositionAffinity } from '../model.js';
-import { LineInjectedText } from '../textModelEvents.js';
-import { InjectedText, ModelLineProjectionData } from '../modelLineProjectionData.js';
+import { applyProjectedLineChanges, InjectedText, ModelLineProjectionData } from '../modelLineProjectionData.js';
 import { ViewLineData } from '../viewModel.js';
 import { IInjectedTextInlineDecorationsComputerContext, InjectedTextInlineDecorationsComputer, InlineDecoration } from './inlineDecorations.js';
 import { getLineTokensWithInjections } from '../model/textModel.js';
@@ -30,7 +29,7 @@ export interface IModelLineProjection {
 	getViewLineData(model: ISimpleModel, modelLineNumber: number, outputLineIndex: number, baseViewLineNumber: number): ViewLineData;
 	getViewLinesData(model: ISimpleModel, modelLineNumber: number, outputLineIdx: number, lineCount: number, baseViewLineNumber: number, globalStartIndex: number, needed: boolean[], result: Array<ViewLineData | null>): void;
 
-	getModelColumnOfViewPosition(outputLineIndex: number, outputColumn: number): number;
+	getModelColumnOfViewPosition(outputLineIndex: number, outputColumn: number, affinity?: PositionAffinity): number;
 	getViewPositionOfModelPosition(deltaLineNumber: number, inputColumn: number, affinity?: PositionAffinity): Position;
 	getViewLineNumberOfModelPosition(deltaLineNumber: number, inputColumn: number): number;
 	normalizePosition(outputLineIndex: number, outputPosition: Position, affinity: PositionAffinity): Position;
@@ -102,21 +101,9 @@ class ModelLineProjection implements IModelLineProjection {
 		const endOffsetInInputWithInjections = this._projectionData.breakOffsets[outputLineIndex];
 
 		let r: string;
-		if (this._projectionData.injectionOffsets !== null) {
-			const injectedTexts = this._projectionData.injectionOffsets.map(
-				(offset, idx) => new LineInjectedText(
-					0,
-					0,
-					offset + 1,
-					this._projectionData.injectionOptions![idx],
-					0
-				)
-			);
-			const lineWithInjections = LineInjectedText.applyInjectedText(
-				model.getLineContent(modelLineNumber),
-				injectedTexts
-			);
-			r = lineWithInjections.substring(startOffsetInInputWithInjections, endOffsetInInputWithInjections);
+		if (this._projectionData.injectionOffsets !== null || this._projectionData.concealOffsets !== null) {
+			const lineWithChanges = applyProjectedLineChanges(model.getLineContent(modelLineNumber), this._projectionData);
+			r = lineWithChanges.substring(startOffsetInInputWithInjections, endOffsetInInputWithInjections);
 		} else {
 			r = model.getValueInRange({
 				startLineNumber: modelLineNumber,
@@ -162,8 +149,10 @@ class ModelLineProjection implements IModelLineProjection {
 
 		const lineBreakData = this._projectionData;
 
-		const injectionOffsets = lineBreakData.injectionOffsets;
 		const injectionOptions = lineBreakData.injectionOptions;
+		// Tokens and inline decorations are computed on the line without its concealed ranges.
+		const injectionOffsets = lineBreakData.getInjectionOffsetsWithoutConcealedText();
+		const concealedRanges = lineBreakData.getConcealedRanges();
 
 		const context: IInjectedTextInlineDecorationsComputerContext = {
 			getInjectionOptions: () => injectionOptions,
@@ -175,7 +164,8 @@ class ModelLineProjection implements IModelLineProjection {
 		const computer = new InjectedTextInlineDecorationsComputer(context);
 		const lineInlineDecorations = computer.getInlineDecorations(modelLineNumber);
 		const lineTokens = model.tokenization.getLineTokens(modelLineNumber);
-		const lineWithInjections = getLineTokensWithInjections(lineTokens, injectionOptions, injectionOffsets);
+		const lineWithoutConcealedText = concealedRanges ? lineTokens.withDeleted(concealedRanges) : lineTokens;
+		const lineWithInjections = getLineTokensWithInjections(lineWithoutConcealedText, injectionOptions, injectionOffsets);
 
 		for (let outputLineIndex = outputLineIdx; outputLineIndex < outputLineIdx + lineCount; outputLineIndex++) {
 			const globalIndex = globalStartIndex + outputLineIndex - outputLineIdx;
@@ -217,9 +207,9 @@ class ModelLineProjection implements IModelLineProjection {
 		);
 	}
 
-	public getModelColumnOfViewPosition(outputLineIndex: number, outputColumn: number): number {
+	public getModelColumnOfViewPosition(outputLineIndex: number, outputColumn: number, affinity?: PositionAffinity): number {
 		this._assertVisible();
-		return this._projectionData.translateToInputOffset(outputLineIndex, outputColumn - 1) + 1;
+		return this._projectionData.translateToInputOffset(outputLineIndex, outputColumn - 1, affinity) + 1;
 	}
 
 	public getViewPositionOfModelPosition(deltaLineNumber: number, inputColumn: number, affinity: PositionAffinity = PositionAffinity.None): Position {
@@ -317,7 +307,7 @@ class IdentityModelLineProjection implements IModelLineProjection {
 		result[globalStartIndex] = this.getViewLineData(model, modelLineNumber, 0, _baseViewLineNumber);
 	}
 
-	public getModelColumnOfViewPosition(_outputLineIndex: number, outputColumn: number): number {
+	public getModelColumnOfViewPosition(_outputLineIndex: number, outputColumn: number, _affinity?: PositionAffinity): number {
 		return outputColumn;
 	}
 
@@ -389,7 +379,7 @@ class HiddenModelLineProjection implements IModelLineProjection {
 		throw new Error('Not supported');
 	}
 
-	public getModelColumnOfViewPosition(_outputLineIndex: number, _outputColumn: number): number {
+	public getModelColumnOfViewPosition(_outputLineIndex: number, _outputColumn: number, _affinity?: PositionAffinity): number {
 		throw new Error('Not supported');
 	}
 

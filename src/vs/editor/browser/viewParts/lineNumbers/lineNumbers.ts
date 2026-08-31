@@ -109,11 +109,16 @@ export class LineNumbersOverlay extends DynamicViewOverlay {
 	// --- end event handlers
 
 	private _getLineRenderLineNumber(viewLineNumber: number): string {
-		const modelPosition = this._context.viewModel.coordinatesConverter.convertViewPositionToModelPosition(new Position(viewLineNumber, 1));
-		if (modelPosition.column !== 1) {
-			return '';
-		}
+		const converter = this._context.viewModel.coordinatesConverter;
+		const modelPosition = converter.convertViewPositionToModelPosition(new Position(viewLineNumber, 1));
 		const modelLineNumber = modelPosition.lineNumber;
+		if (modelPosition.column !== 1) {
+			// A concealed range at column 1 may map view column 1 to the range's end; the row is
+			// still the line's first if its first model column is drawn on it.
+			if (converter.convertModelPositionToViewPosition(new Position(modelLineNumber, 1)).lineNumber !== viewLineNumber) {
+				return '';
+			}
+		}
 
 		if (this._renderCustomLineNumbers) {
 			return this._renderCustomLineNumbers(modelLineNumber);

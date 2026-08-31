@@ -198,6 +198,11 @@ export class DiffEditorEditors extends Disposable {
 		clonedOptions.minimap = { ...(clonedOptions.minimap || {}) };
 		clonedOptions.minimap.enabled = false;
 
+		// Concealment is off in diff panes unless `editor.conceal.inDiffEditor` opts in.
+		if (!clonedOptions.conceal?.inDiffEditor) {
+			clonedOptions.conceal = { ...(clonedOptions.conceal || {}), enabled: false };
+		}
+
 		if (this._options.hideUnchangedRegions.get()) {
 			clonedOptions.stickyScroll = { enabled: false };
 		} else {

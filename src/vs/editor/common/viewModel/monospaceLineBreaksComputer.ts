@@ -8,9 +8,8 @@ import * as strings from '../../../base/common/strings.js';
 import { WrappingIndent, IComputedEditorOptions, EditorOption } from '../config/editorOptions.js';
 import { CharacterClassifier } from '../core/characterClassifier.js';
 import { FontInfo } from '../config/fontInfo.js';
-import { LineInjectedText } from '../textModelEvents.js';
-import { InjectedTextOptions } from '../model.js';
-import { ILineBreaksComputerFactory, ILineBreaksComputer, ModelLineProjectionData, ILineBreaksComputerContext } from '../modelLineProjectionData.js';
+import { LineConcealedText, LineInjectedText } from '../textModelEvents.js';
+import { applyProjectedLineChanges, computeProjectedLineChanges, ILineBreaksComputerFactory, ILineBreaksComputer, ModelLineProjectionData, ILineBreaksComputerContext } from '../modelLineProjectionData.js';
 
 export class MonospaceLineBreaksComputerFactory implements ILineBreaksComputerFactory {
 	public static create(options: IComputedEditorOptions): MonospaceLineBreaksComputerFactory {
@@ -40,13 +39,14 @@ export class MonospaceLineBreaksComputerFactory implements ILineBreaksComputerFa
 				for (let i = 0, len = lineNumbers.length; i < len; i++) {
 					const lineNumber = lineNumbers[i];
 					const injectedText = context.getLineInjectedText(lineNumber);
+					const concealedText = context.getLineConcealedText(lineNumber);
 					const lineText = context.getLineContent(lineNumber);
 					const previousLineBreakData = previousBreakingData[i];
 					const isLineFeedWrappingEnabled = wrapOnEscapedLineFeeds && lineText.includes('"') && lineText.includes('\\n');
-					if (previousLineBreakData && !previousLineBreakData.injectionOptions && !injectedText && !isLineFeedWrappingEnabled) {
+					if (previousLineBreakData && !previousLineBreakData.injectionOptions && !previousLineBreakData.concealOffsets && !injectedText && !concealedText?.length && !isLineFeedWrappingEnabled) {
 						result[i] = createLineBreaksFromPreviousLineBreaks(this.classifier, previousLineBreakData, lineText, tabSize, wrappingColumn, columnsForFullWidthChar, wrappingIndent, wordBreak);
 					} else {
-						result[i] = createLineBreaks(this.classifier, lineText, injectedText, tabSize, wrappingColumn, columnsForFullWidthChar, wrappingIndent, wordBreak, isLineFeedWrappingEnabled);
+						result[i] = createLineBreaks(this.classifier, lineText, injectedText, concealedText, tabSize, wrappingColumn, columnsForFullWidthChar, wrappingIndent, wordBreak, isLineFeedWrappingEnabled);
 					}
 				}
 				arrPool1.length = 0;
@@ -356,36 +356,34 @@ function createLineBreaksFromPreviousLineBreaks(classifier: WrappingCharacterCla
 	return previousBreakingData;
 }
 
-function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: string, injectedTexts: LineInjectedText[] | null, tabSize: number, firstLineBreakColumn: number, columnsForFullWidthChar: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll', wrapOnEscapedLineFeeds: boolean): ModelLineProjectionData | null {
-	const lineText = LineInjectedText.applyInjectedText(_lineText, injectedTexts);
+function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: string, injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null, tabSize: number, firstLineBreakColumn: number, columnsForFullWidthChar: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll', wrapOnEscapedLineFeeds: boolean): ModelLineProjectionData | null {
+	const changes = computeProjectedLineChanges(injectedTexts, concealedTexts, _lineText);
+	const lineText = applyProjectedLineChanges(_lineText, changes);
 
-	let injectionOptions: InjectedTextOptions[] | null;
-	let injectionOffsets: number[] | null;
-	if (injectedTexts && injectedTexts.length > 0) {
-		injectionOptions = injectedTexts.map(t => t.options);
-		injectionOffsets = injectedTexts.map(text => text.column - 1);
-	} else {
-		injectionOptions = null;
-		injectionOffsets = null;
-	}
+	const injectionOptions = changes.injectionOptions;
+	const injectionOffsets = changes.injectionOffsets;
+	const concealOffsets = changes.concealOffsets;
+	const concealLengths = changes.concealLengths;
+	const concealStops = changes.concealStops;
+	const isProjected = injectionOptions !== null || concealOffsets !== null;
 
 	if (firstLineBreakColumn === -1) {
-		if (!injectionOptions) {
+		if (!isProjected) {
 			return null;
 		}
 		// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 		// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0);
+		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealOffsets, concealLengths, concealStops);
 	}
 
 	const len = lineText.length;
 	if (len <= 1) {
-		if (!injectionOptions) {
+		if (!isProjected) {
 			return null;
 		}
 		// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 		// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0);
+		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealOffsets, concealLengths, concealStops);
 	}
 
 	const isKeepAll = (wordBreak === 'keepAll');
@@ -462,7 +460,8 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 		prevCharCodeClass = charCodeClass;
 	}
 
-	if (breakingOffsetsCount === 0 && (!injectedTexts || injectedTexts.length === 0)) {
+	if (breakingOffsetsCount === 0 && !isProjected) {
+		// A line that neither wraps nor is changed by the view needs no projection at all.
 		return null;
 	}
 
@@ -470,7 +469,7 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 	breakingOffsets[breakingOffsetsCount] = len;
 	breakingOffsetsVisibleColumn[breakingOffsetsCount] = visibleColumn;
 
-	return new ModelLineProjectionData(injectionOffsets, injectionOptions, breakingOffsets, breakingOffsetsVisibleColumn, wrappedTextIndentLength);
+	return new ModelLineProjectionData(injectionOffsets, injectionOptions, breakingOffsets, breakingOffsetsVisibleColumn, wrappedTextIndentLength, concealOffsets, concealLengths, concealStops);
 }
 
 function computeCharWidth(charCode: number, visibleColumn: number, tabSize: number, columnsForFullWidthChar: number): number {

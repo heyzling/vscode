@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { IDisposable } from '../../../base/common/lifecycle.js';
-import { WrappingIndent } from '../config/editorOptions.js';
+import { EditorConcealOptions, WrappingIndent } from '../config/editorOptions.js';
 import { FontInfo } from '../config/fontInfo.js';
 import { IPosition, Position } from '../core/position.js';
 import { Range } from '../core/range.js';
@@ -17,12 +17,12 @@ import { ILineBreaksComputer, ModelLineProjectionData, InjectedText, ILineBreaks
 import { ConstantTimePrefixSumComputer } from '../model/prefixSumComputer.js';
 import { ViewLineData } from '../viewModel.js';
 import { ICoordinatesConverter, IdentityCoordinatesConverter } from '../coordinatesConverter.js';
-import { LineInjectedText } from '../textModelEvents.js';
+import { LineConcealedText, LineInjectedText } from '../textModelEvents.js';
 
 export interface IViewModelLines extends IDisposable {
 	createCoordinatesConverter(): ICoordinatesConverter;
 
-	setWrappingSettings(fontInfo: FontInfo, wrappingStrategy: 'simple' | 'advanced', wrappingColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): boolean;
+	setWrappingSettings(fontInfo: FontInfo, wrappingStrategy: 'simple' | 'advanced', wrappingColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll', conceal: EditorConcealOptions): boolean;
 	setTabSize(newTabSize: number): boolean;
 	getHiddenAreas(): Range[];
 	setHiddenAreas(_ranges: readonly Range[]): boolean;
@@ -72,6 +72,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 	private wordBreak: 'normal' | 'keepAll';
 	private wrappingStrategy: 'simple' | 'advanced';
 	private wrapOnEscapedLineFeeds: boolean;
+	private conceal: EditorConcealOptions;
 
 	private modelLineProjections!: IModelLineProjection[];
 
@@ -93,7 +94,8 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		wrappingColumn: number,
 		wrappingIndent: WrappingIndent,
 		wordBreak: 'normal' | 'keepAll',
-		wrapOnEscapedLineFeeds: boolean
+		wrapOnEscapedLineFeeds: boolean,
+		conceal: EditorConcealOptions
 	) {
 		this._editorId = editorId;
 		this.model = model;
@@ -107,12 +109,13 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		this.wrappingIndent = wrappingIndent;
 		this.wordBreak = wordBreak;
 		this.wrapOnEscapedLineFeeds = wrapOnEscapedLineFeeds;
+		this.conceal = conceal;
 
 		this._constructLines(/*resetHiddenAreas*/true, null);
 	}
 
 	public dispose(): void {
-		this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, []);
+		this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], [])) ?? [];
 	}
 
 	public createCoordinatesConverter(): ICoordinatesConverter {
@@ -123,7 +126,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		this.modelLineProjections = [];
 
 		if (resetHiddenAreas) {
-			this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, []);
+			this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], [])) ?? [];
 		}
 
 		const linesContent = this.model.getLinesContent();
@@ -200,7 +203,8 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 			})
 		);
 
-		this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, newDecorations);
+		// Through the accessor: hidden areas may change inside a decorations transaction.
+		this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], newDecorations)) ?? this.hiddenAreasDecorationIds;
 
 		const hiddenAreas = newRanges;
 		let hiddenAreaStart = 1, hiddenAreaEnd = 0;
@@ -274,23 +278,25 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		return true;
 	}
 
-	public setWrappingSettings(fontInfo: FontInfo, wrappingStrategy: 'simple' | 'advanced', wrappingColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): boolean {
+	public setWrappingSettings(fontInfo: FontInfo, wrappingStrategy: 'simple' | 'advanced', wrappingColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll', conceal: EditorConcealOptions): boolean {
 		const equalFontInfo = this.fontInfo.equals(fontInfo);
 		const equalWrappingStrategy = (this.wrappingStrategy === wrappingStrategy);
 		const equalWrappingColumn = (this.wrappingColumn === wrappingColumn);
 		const equalWrappingIndent = (this.wrappingIndent === wrappingIndent);
 		const equalWordBreak = (this.wordBreak === wordBreak);
-		if (equalFontInfo && equalWrappingStrategy && equalWrappingColumn && equalWrappingIndent && equalWordBreak) {
+		const equalConceal = (this.conceal.enabled === conceal.enabled && this.conceal.maximumReplacementLength === conceal.maximumReplacementLength);
+		if (equalFontInfo && equalWrappingStrategy && equalWrappingColumn && equalWrappingIndent && equalWordBreak && equalConceal) {
 			return false;
 		}
 
-		const onlyWrappingColumnChanged = (equalFontInfo && equalWrappingStrategy && !equalWrappingColumn && equalWrappingIndent && equalWordBreak);
+		const onlyWrappingColumnChanged = (equalFontInfo && equalWrappingStrategy && !equalWrappingColumn && equalWrappingIndent && equalWordBreak && equalConceal);
 
 		this.fontInfo = fontInfo;
 		this.wrappingStrategy = wrappingStrategy;
 		this.wrappingColumn = wrappingColumn;
 		this.wrappingIndent = wrappingIndent;
 		this.wordBreak = wordBreak;
+		this.conceal = conceal;
 
 		let previousLineBreaks: ((ModelLineProjectionData | null)[]) | null = null;
 		if (onlyWrappingColumnChanged) {
@@ -317,6 +323,17 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 			},
 			getLineInjectedText: (lineNumber: number): LineInjectedText[] => {
 				return this.model.getLineInjectedText(lineNumber, this._editorId);
+			},
+			getLineConcealedText: (lineNumber: number): LineConcealedText[] | null => {
+				if (!this.conceal.enabled) {
+					return null;
+				}
+				const concealedText = this.model.getLineConcealedText(lineNumber, this._editorId);
+				if (this.conceal.maximumReplacementLength <= 0) {
+					return concealedText;
+				}
+				// The cap is a per-editor setting; under `preserveWidth` the width is the document's.
+				return concealedText.map(c => c.options.preserveWidth ? c : c.withReplacementCappedAt(this.conceal.maximumReplacementLength));
 			}
 		};
 		return lineBreaksComputerFactory.createLineBreaksComputer(context, this.fontInfo, this.tabSize, this.wrappingColumn, this.wrappingIndent, this.wordBreak, this.wrapOnEscapedLineFeeds);
@@ -831,10 +848,10 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		return new Range(validViewStart.lineNumber, validViewStart.column, validViewEnd.lineNumber, validViewEnd.column);
 	}
 
-	public convertViewPositionToModelPosition(viewLineNumber: number, viewColumn: number): Position {
+	public convertViewPositionToModelPosition(viewLineNumber: number, viewColumn: number, affinity: PositionAffinity = PositionAffinity.None): Position {
 		const info = this.getViewLineInfo(viewLineNumber);
 
-		const inputColumn = this.modelLineProjections[info.modelLineNumber - 1].getModelColumnOfViewPosition(info.modelLineWrappedLineIdx, viewColumn);
+		const inputColumn = this.modelLineProjections[info.modelLineNumber - 1].getModelColumnOfViewPosition(info.modelLineWrappedLineIdx, viewColumn, affinity);
 		// console.log('out -> in ' + viewLineNumber + ',' + viewColumn + ' ===> ' + (lineIndex+1) + ',' + inputColumn);
 		return this.model.validatePosition(new Position(info.modelLineNumber, inputColumn));
 	}
@@ -1079,8 +1096,8 @@ class CoordinatesConverter implements ICoordinatesConverter {
 
 	// View -> Model conversion and related methods
 
-	public convertViewPositionToModelPosition(viewPosition: Position): Position {
-		return this._lines.convertViewPositionToModelPosition(viewPosition.lineNumber, viewPosition.column);
+	public convertViewPositionToModelPosition(viewPosition: Position, affinity: PositionAffinity = PositionAffinity.None): Position {
+		return this._lines.convertViewPositionToModelPosition(viewPosition.lineNumber, viewPosition.column, affinity);
 	}
 
 	public convertViewRangeToModelRange(viewRange: Range): Range {
@@ -1150,7 +1167,7 @@ export class ViewModelLinesFromModelAsIs implements IViewModelLines {
 		return false;
 	}
 
-	public setWrappingSettings(_fontInfo: FontInfo, _wrappingStrategy: 'simple' | 'advanced', _wrappingColumn: number, _wrappingIndent: WrappingIndent): boolean {
+	public setWrappingSettings(_fontInfo: FontInfo, _wrappingStrategy: 'simple' | 'advanced', _wrappingColumn: number, _wrappingIndent: WrappingIndent, _wordBreak: 'normal' | 'keepAll', _conceal: EditorConcealOptions): boolean {
 		return false;
 	}
 

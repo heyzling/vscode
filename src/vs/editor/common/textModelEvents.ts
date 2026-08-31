@@ -6,7 +6,8 @@
 import { IPosition } from './core/position.js';
 import { IRange, Range } from './core/range.js';
 import { Selection } from './core/selection.js';
-import { IModelDecoration, InjectedTextOptions } from './model.js';
+import { Lazy } from '../../base/common/lazy.js';
+import { ConcealedTextOptions, IModelDecoration, InjectedTextOptions } from './model.js';
 import { IModelContentChange } from './model/mirrorTextModel.js';
 import { AnnotationsUpdate } from './model/tokens/annotations.js';
 import { TextModelEditSource } from './textModelEditSource.js';
@@ -300,6 +301,96 @@ export class LineInjectedText {
 		return new LineInjectedText(this.ownerId, this.lineNumber, this.column, { ...this.options, content: text }, this.order);
 	}
 }
+
+/**
+ * Represents text of a line that is concealed in the view.
+ * @internal
+ */
+export class LineConcealedText {
+	/**
+	 * The concealed ranges of a line, sorted by start column and clipped so they never overlap.
+	 * Ranges spanning multiple lines are not concealed.
+	 */
+	public static fromDecorations(decorations: IModelDecoration[], lineNumber: number): LineConcealedText[] {
+		const result: LineConcealedText[] = [];
+		for (const decoration of decorations) {
+			if (!decoration.options.concealedText) {
+				continue;
+			}
+			const range = decoration.range;
+			if (range.startLineNumber !== lineNumber || range.endLineNumber !== lineNumber || range.startColumn === range.endColumn) {
+				continue;
+			}
+			result.push(new LineConcealedText(
+				decoration.ownerId,
+				lineNumber,
+				range.startColumn,
+				range.endColumn,
+				decoration.options.concealedText,
+			));
+		}
+
+		result.sort((a, b) => a.startColumn - b.startColumn || a.endColumn - b.endColumn);
+
+		const merged: LineConcealedText[] = [];
+		for (const concealedText of result) {
+			const previous = merged.length > 0 ? merged[merged.length - 1] : null;
+			if (previous && concealedText.startColumn < previous.endColumn) {
+				// Overlaps the previous range: keep only the part sticking out.
+				if (concealedText.endColumn > previous.endColumn) {
+					merged.push(concealedText.withStartColumn(previous.endColumn));
+				}
+				continue;
+			}
+			merged.push(concealedText);
+		}
+		return merged;
+	}
+
+	constructor(
+		public readonly ownerId: number,
+		public readonly lineNumber: number,
+		public readonly startColumn: number,
+		public readonly endColumn: number,
+		public readonly options: ConcealedTextOptions,
+	) { }
+
+	public get length(): number {
+		return this.endColumn - this.startColumn;
+	}
+
+	private withStartColumn(startColumn: number): LineConcealedText {
+		return new LineConcealedText(this.ownerId, this.lineNumber, startColumn, this.endColumn, this.options);
+	}
+
+	/**
+	 * A copy with the replacement content cut to `maxGraphemes` grapheme clusters, the cut
+	 * marked with `…`. Returns `this` when nothing is cut.
+	 */
+	public withReplacementCappedAt(maxGraphemes: number): LineConcealedText {
+		const content = this.options.replacement?.content;
+		if (!content || maxGraphemes <= 0) {
+			return this;
+		}
+		let end = 0;
+		let count = 0;
+		for (const segment of graphemeSegmenter.value.segment(content)) {
+			if (count === maxGraphemes) {
+				break;
+			}
+			end = segment.index + segment.segment.length;
+			count++;
+		}
+		if (end >= content.length) {
+			return this;
+		}
+		const replacement = { ...this.options.replacement, content: content.substring(0, end) + '…' };
+		return new LineConcealedText(this.ownerId, this.lineNumber, this.startColumn, this.endColumn, { replacement, cursorStop: this.options.cursorStop });
+	}
+}
+
+const graphemeSegmenter = new Lazy(() => new Intl.Segmenter(undefined, { granularity: 'grapheme' }));
+
 
 /**
  * An event describing that a line has changed in a model.
