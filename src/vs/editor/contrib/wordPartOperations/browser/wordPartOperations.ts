@@ -31,6 +31,8 @@ export class DeleteWordPartLeft extends DeleteWordCommand {
 		});
 	}
 
+	protected override readonly _deleteDirection = 'left' as const;
+
 	protected _delete(ctx: DeleteWordContext, wordNavigationType: WordNavigationType): Range {
 		const r = WordPartOperations.deleteWordPartLeft(ctx);
 		if (r) {
@@ -56,6 +58,8 @@ export class DeleteWordPartRight extends DeleteWordCommand {
 		});
 	}
 
+	protected override readonly _deleteDirection = 'right' as const;
+
 	protected _delete(ctx: DeleteWordContext, wordNavigationType: WordNavigationType): Range {
 		const r = WordPartOperations.deleteWordPartRight(ctx);
 		if (r) {
@@ -68,6 +72,8 @@ export class DeleteWordPartRight extends DeleteWordCommand {
 }
 
 export class WordPartLeftCommand extends MoveWordCommand {
+	protected readonly _forward = false;
+
 	protected _move(wordSeparators: WordCharacterClassifier, model: ITextModel, position: Position, wordNavigationType: WordNavigationType, hasMulticursor: boolean): Position {
 		return WordPartOperations.moveWordPartLeft(wordSeparators, model, position, hasMulticursor);
 	}
@@ -111,6 +117,8 @@ export class CursorWordPartLeftSelect extends WordPartLeftCommand {
 CommandsRegistry.registerCommandAlias('cursorWordPartStartLeftSelect', 'cursorWordPartLeftSelect');
 
 export class WordPartRightCommand extends MoveWordCommand {
+	protected readonly _forward = true;
+
 	protected _move(wordSeparators: WordCharacterClassifier, model: ITextModel, position: Position, wordNavigationType: WordNavigationType, hasMulticursor: boolean): Position {
 		return WordPartOperations.moveWordPartRight(wordSeparators, model, position);
 	}

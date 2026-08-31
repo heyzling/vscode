@@ -80,6 +80,7 @@ export class CursorConfiguration {
 	public readonly shouldAutoCloseBefore: { quote: (ch: string) => boolean; bracket: (ch: string) => boolean; comment: (ch: string) => boolean };
 	public readonly wordSegmenterLocales: string[];
 	public readonly overtypeOnPaste: boolean;
+	public readonly concealedText: boolean;
 
 	private readonly _languageId: string;
 	private _electricChars: { [key: string]: boolean } | null;
@@ -144,6 +145,7 @@ export class CursorConfiguration {
 		this.autoIndent = options.get(EditorOption.autoIndent);
 		this.wordSegmenterLocales = options.get(EditorOption.wordSegmenterLocales);
 		this.overtypeOnPaste = options.get(EditorOption.overtypeOnPaste);
+		this.concealedText = options.get(EditorOption.conceal).enabled;
 
 		this.surroundingPairs = {};
 		this._electricChars = null;
@@ -350,6 +352,12 @@ export class SingleCursorState {
 		public readonly selectionStartLeftoverVisibleColumns: number,
 		public readonly position: Position,
 		public readonly leftoverVisibleColumns: number,
+		/**
+		 * The direction of the move that produced this state, if any. Decides which end of a
+		 * concealed range the caret is on when the range's cursor stop is `Auto`. Not part of
+		 * {@link equals}.
+		 */
+		public readonly positionAffinity: PositionAffinity = PositionAffinity.None,
 	) {
 		this.selection = SingleCursorState._computeSelection(this.selectionStart, this.position);
 	}
@@ -368,7 +376,7 @@ export class SingleCursorState {
 		return (!this.selection.isEmpty() || !this.selectionStart.isEmpty());
 	}
 
-	public move(inSelectionMode: boolean, lineNumber: number, column: number, leftoverVisibleColumns: number): SingleCursorState {
+	public move(inSelectionMode: boolean, lineNumber: number, column: number, leftoverVisibleColumns: number, positionAffinity: PositionAffinity = PositionAffinity.None): SingleCursorState {
 		if (inSelectionMode) {
 			// move just position
 			return new SingleCursorState(
@@ -376,7 +384,8 @@ export class SingleCursorState {
 				this.selectionStartKind,
 				this.selectionStartLeftoverVisibleColumns,
 				new Position(lineNumber, column),
-				leftoverVisibleColumns
+				leftoverVisibleColumns,
+				positionAffinity
 			);
 		} else {
 			// move everything
@@ -385,7 +394,8 @@ export class SingleCursorState {
 				SelectionStartKind.Simple,
 				leftoverVisibleColumns,
 				new Position(lineNumber, column),
-				leftoverVisibleColumns
+				leftoverVisibleColumns,
+				positionAffinity
 			);
 		}
 	}

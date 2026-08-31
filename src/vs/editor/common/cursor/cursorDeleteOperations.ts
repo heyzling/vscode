@@ -14,6 +14,7 @@ import { Selection } from '../core/selection.js';
 import { ICommand } from '../editorCommon.js';
 import { StandardAutoClosingPairConditional } from '../languages/languageConfiguration.js';
 import { Position } from '../core/position.js';
+import { expandOverConcealedText, positionPastProtectedConcealedText } from './cursorConcealedText.js';
 
 export class DeleteOperations {
 
@@ -21,9 +22,13 @@ export class DeleteOperations {
 		const commands: Array<ICommand | null> = [];
 		let shouldPushStackElementBefore = (prevEditOperationType !== EditOperationType.DeletingRight);
 		for (let i = 0, len = selections.length; i < len; i++) {
-			const selection = selections[i];
+			let selection = selections[i];
 
-			const deleteSelection = this.getDeleteRightRange(selection, model, config);
+			if (selection.isEmpty()) {
+				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, true, config.concealedText);
+				selection = Selection.fromPositions(hopped, hopped);
+			}
+			const deleteSelection = expandOverConcealedText(this.getDeleteRightRange(selection, model, config), model, config.concealedText, 'right');
 
 			if (deleteSelection.isEmpty()) {
 				// Probably at end of file => ignore
@@ -171,7 +176,13 @@ export class DeleteOperations {
 		const commands: Array<ICommand | null> = [];
 		let shouldPushStackElementBefore = (prevEditOperationType !== EditOperationType.DeletingLeft);
 		for (let i = 0, len = selections.length; i < len; i++) {
-			const deleteRange = DeleteOperations.getDeleteLeftRange(selections[i], model, config);
+			let selection = selections[i];
+
+			if (selection.isEmpty()) {
+				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, false, config.concealedText);
+				selection = Selection.fromPositions(hopped, hopped);
+			}
+			const deleteRange = expandOverConcealedText(DeleteOperations.getDeleteLeftRange(selection, model, config), model, config.concealedText, 'left');
 
 			// Ignore empty delete ranges, as they have no effect
 			// They happen if the cursor is at the beginning of the file.

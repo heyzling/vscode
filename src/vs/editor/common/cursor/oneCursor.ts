@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { CursorState, ICursorSimpleModel, SelectionStartKind, SingleCursorState } from '../cursorCommon.js';
+import { stateOutsideConcealedText } from './cursorConcealedText.js';
 import { CursorContext } from './cursorContext.js';
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
@@ -121,13 +122,16 @@ export class Cursor {
 				return;
 			}
 			// We only have the view state => compute the model state
-			const selectionStart = context.model.validateRange(
-				context.coordinatesConverter.convertViewRangeToModelRange(viewState.selectionStart)
+			const position = context.model.validatePosition(
+				context.coordinatesConverter.convertViewPositionToModelPosition(viewState.position, viewState.positionAffinity)
 			);
 
-			const position = context.model.validatePosition(
-				context.coordinatesConverter.convertViewPositionToModelPosition(viewState.position)
-			);
+			// An empty selection start at the caret must resolve to the same side of a concealed range.
+			const selectionStart = viewState.selectionStart.isEmpty() && viewState.selectionStart.getStartPosition().equals(viewState.position)
+				? Range.fromPositions(position, position)
+				: context.model.validateRange(
+					context.coordinatesConverter.convertViewRangeToModelRange(viewState.selectionStart)
+				);
 
 			modelState = new SingleCursorState(selectionStart, viewState.selectionStartKind, viewState.selectionStartLeftoverVisibleColumns, position, viewState.leftoverVisibleColumns);
 		} else {
@@ -143,12 +147,21 @@ export class Cursor {
 			modelState = new SingleCursorState(selectionStart, modelState.selectionStartKind, selectionStartLeftoverVisibleColumns, position, leftoverVisibleColumns);
 		}
 
+		// On every state: a range can be concealed around a cursor that has not moved.
+		const concealed = stateOutsideConcealedText(modelState.selectionStart, modelState.position, context.model, context.cursorConfig.concealedText);
+		if (concealed) {
+			modelState = new SingleCursorState(concealed.selectionStart, modelState.selectionStartKind, modelState.selectionStartLeftoverVisibleColumns, concealed.position, modelState.leftoverVisibleColumns);
+			// Recomputed from the model below.
+			viewState = null;
+		}
+
 		if (!viewState) {
 			// We only have the model state => compute the view state
 			const viewSelectionStart1 = context.coordinatesConverter.convertModelPositionToViewPosition(new Position(modelState.selectionStart.startLineNumber, modelState.selectionStart.startColumn));
 			const viewSelectionStart2 = context.coordinatesConverter.convertModelPositionToViewPosition(new Position(modelState.selectionStart.endLineNumber, modelState.selectionStart.endColumn));
 			const viewSelectionStart = new Range(viewSelectionStart1.lineNumber, viewSelectionStart1.column, viewSelectionStart2.lineNumber, viewSelectionStart2.column);
 			const viewPosition = context.coordinatesConverter.convertModelPositionToViewPosition(modelState.position);
+
 			viewState = new SingleCursorState(viewSelectionStart, modelState.selectionStartKind, modelState.selectionStartLeftoverVisibleColumns, viewPosition, modelState.leftoverVisibleColumns);
 		} else {
 			// Validate new view state

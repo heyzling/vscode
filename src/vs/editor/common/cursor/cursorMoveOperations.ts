@@ -83,7 +83,7 @@ export class MoveOperations {
 			column = p.column;
 		}
 
-		return cursor.move(inSelectionMode, lineNumber, column, 0);
+		return cursor.move(inSelectionMode, lineNumber, column, 0, PositionAffinity.Left);
 	}
 
 	/**
@@ -151,7 +151,7 @@ export class MoveOperations {
 			column = r.column;
 		}
 
-		return cursor.move(inSelectionMode, lineNumber, column, 0);
+		return cursor.move(inSelectionMode, lineNumber, column, 0, PositionAffinity.Right);
 	}
 
 	public static vertical(config: CursorConfiguration, model: ICursorSimpleModel, lineNumber: number, column: number, leftoverVisibleColumns: number, newLineNumber: number, allowMoveOnEdgeLine: boolean, normalizationAffinity?: PositionAffinity): CursorPosition {

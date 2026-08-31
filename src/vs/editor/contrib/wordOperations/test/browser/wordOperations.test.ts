@@ -11,8 +11,10 @@ import { CoreEditingCommands } from '../../../../browser/coreCommands.js';
 import { ICodeEditor } from '../../../../browser/editorBrowser.js';
 import { EditorCommand } from '../../../../browser/editorExtensions.js';
 import { Position } from '../../../../common/core/position.js';
+import { Range } from '../../../../common/core/range.js';
 import { Selection } from '../../../../common/core/selection.js';
 import { ILanguageService } from '../../../../common/languages/language.js';
+import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../../../../common/model.js';
 import { ILanguageConfigurationService } from '../../../../common/languages/languageConfigurationRegistry.js';
 import { ViewModel } from '../../../../common/viewModel/viewModelImpl.js';
 import { CursorWordAccessibilityLeft, CursorWordAccessibilityLeftSelect, CursorWordAccessibilityRight, CursorWordAccessibilityRightSelect, CursorWordEndLeft, CursorWordEndLeftSelect, CursorWordEndRight, CursorWordEndRightSelect, CursorWordLeft, CursorWordLeftSelect, CursorWordRight, CursorWordRightSelect, CursorWordStartLeft, CursorWordStartLeftSelect, CursorWordStartRight, CursorWordStartRightSelect, DeleteInsideWord, DeleteWordEndLeft, DeleteWordEndRight, DeleteWordLeft, DeleteWordRight, DeleteWordStartLeft, DeleteWordStartRight } from '../../browser/wordOperations.js';
@@ -550,6 +552,67 @@ suite('WordOperations', () => {
 			deleteWordLeft(editor);
 			assert.strictEqual(model.getLineContent(3), '    Thd Line🐶');
 			assert.deepStrictEqual(editor.getPosition(), new Position(3, 7));
+		});
+	});
+
+	test('word navigation crosses concealed text instead of stalling inside it', () => {
+		// The next word end from column 8 is inside the hidden text; the move must not stall there.
+		withTestCodeEditor(['^ab12cd #next step'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [{
+				range: new Range(1, 1, 1, 8),
+				options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before } }
+			}]);
+
+			editor.setPosition(new Position(1, 8));
+			moveWordEndRight(editor);
+			assert.deepStrictEqual(editor.getPosition(), new Position(1, 14), 'the word after the id');
+
+			// Back: `next`, `#`, then the whole id in one step.
+			const columns = [10, 9, 1];
+			for (const column of columns) {
+				cursorWordLeft(editor);
+				assert.deepStrictEqual(editor.getPosition(), new Position(1, column), `back to column ${column}`);
+			}
+		});
+	});
+
+	test('deleteWordLeft takes concealed text whole', () => {
+		withTestCodeEditor(['is #done by now'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [{
+				range: new Range(1, 4, 1, 9),
+				options: { description: 'test-conceal', concealedText: {} }
+			}]);
+			editor.setPosition(new Position(1, 9));
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'is  by now');
+		});
+	});
+
+	test('deleteWordLeft steps over protected concealed text', () => {
+		withTestCodeEditor(['aa **bold** zz'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [
+				{ range: new Range(1, 4, 1, 6), options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+				{ range: new Range(1, 10, 1, 12), options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+			]);
+			editor.setPosition(new Position(1, 10));
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'aa **** zz', 'the word goes, the markers stay');
+		});
+	});
+
+	test('deleteWordLeft under passthrough takes hidden characters as a word', () => {
+		withTestCodeEditor(['x \\gamma y'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [{
+				range: new Range(1, 3, 1, 9),
+				options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' }, deletionPolicy: ConcealedTextDeletionPolicy.Passthrough } }
+			}]);
+			editor.setPosition(new Position(1, 9));
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'x \\ y', 'the hidden word goes, its leading backslash stays');
 		});
 	});
 

@@ -18,6 +18,7 @@ import { Range } from '../../../common/core/range.js';
 import { Selection } from '../../../common/core/selection.js';
 import { getMapForWordSeparators, WordCharacterClassifier } from '../../../common/core/wordCharacterClassifier.js';
 import { DeleteWordContext, WordNavigationType, WordOperations } from '../../../common/cursor/cursorWordOperations.js';
+import { expandOverConcealedText, positionOutsideConcealedText, positionPastProtectedConcealedText } from '../../../common/cursor/cursorConcealedText.js';
 import { CursorState } from '../../../common/cursorCommon.js';
 import { CursorChangeReason } from '../../../common/cursorEvents.js';
 import { ScrollType } from '../../../common/editorCommon.js';
@@ -49,9 +50,11 @@ export abstract class MoveWordCommand extends EditorCommand {
 		const model = editor.getModel();
 		const selections = editor.getSelections();
 		const hasMulticursor = selections.length > 1;
+		// Leave a concealed range by the end the move heads for, before and after the move.
+		const concealedText = editor.getOption(EditorOption.conceal).enabled;
 		const result = selections.map((sel) => {
-			const inPosition = new Position(sel.positionLineNumber, sel.positionColumn);
-			const outPosition = this._move(wordSeparators, model, inPosition, this._wordNavigationType, hasMulticursor);
+			const inPosition = positionOutsideConcealedText(new Position(sel.positionLineNumber, sel.positionColumn), model, this._forward, concealedText);
+			const outPosition = positionOutsideConcealedText(this._move(wordSeparators, model, inPosition, this._wordNavigationType, hasMulticursor), model, this._forward, concealedText);
 			return this._moveTo(sel, outPosition, this._inSelectionMode);
 		});
 
@@ -83,16 +86,23 @@ export abstract class MoveWordCommand extends EditorCommand {
 		}
 	}
 
+	/** Which way this command travels, for the concealed ranges it has to cross. */
+	protected abstract readonly _forward: boolean;
+
 	protected abstract _move(wordSeparators: WordCharacterClassifier, model: ITextModel, position: Position, wordNavigationType: WordNavigationType, hasMulticursor: boolean): Position;
 }
 
 export class WordLeftCommand extends MoveWordCommand {
+	protected readonly _forward = false;
+
 	protected _move(wordSeparators: WordCharacterClassifier, model: ITextModel, position: Position, wordNavigationType: WordNavigationType, hasMulticursor: boolean): Position {
 		return WordOperations.moveWordLeft(wordSeparators, model, position, wordNavigationType, hasMulticursor);
 	}
 }
 
 export class WordRightCommand extends MoveWordCommand {
+	protected readonly _forward = true;
+
 	protected _move(wordSeparators: WordCharacterClassifier, model: ITextModel, position: Position, wordNavigationType: WordNavigationType, hasMulticursor: boolean): Position {
 		return WordOperations.moveWordRight(wordSeparators, model, position, wordNavigationType);
 	}
@@ -323,6 +333,7 @@ export interface DeleteWordOptions extends ICommandOptions {
 export abstract class DeleteWordCommand extends EditorCommand {
 	private readonly _whitespaceHeuristics: boolean;
 	private readonly _wordNavigationType: WordNavigationType;
+	protected abstract readonly _deleteDirection: 'left' | 'right';
 
 	constructor(opts: DeleteWordOptions) {
 		super({ canTriggerInlineEdits: true, ...opts });
@@ -344,7 +355,13 @@ export abstract class DeleteWordCommand extends EditorCommand {
 		const autoClosingPairs = languageConfigurationService.getLanguageConfiguration(model.getLanguageId()).getAutoClosingPairs();
 		const viewModel = editor._getViewModel();
 
+		const concealedTextEnabled = editor.getOption(EditorOption.conceal).enabled;
 		const commands = selections.map((sel) => {
+			if (sel.isEmpty()) {
+				// Step over protected concealed ranges first, as Backspace and Delete do.
+				const hopped = positionPastProtectedConcealedText(sel.getPosition(), model, this._deleteDirection === 'right', concealedTextEnabled);
+				sel = Selection.fromPositions(hopped, hopped);
+			}
 			const deleteRange = this._delete({
 				wordSeparators,
 				model,
@@ -356,7 +373,7 @@ export abstract class DeleteWordCommand extends EditorCommand {
 				autoClosingPairs,
 				autoClosedCharacters: viewModel.getCursorAutoClosedCharacters(),
 			}, this._wordNavigationType);
-			return new ReplaceCommand(deleteRange, '');
+			return new ReplaceCommand(expandOverConcealedText(deleteRange, model, concealedTextEnabled, this._deleteDirection), '');
 		});
 
 		editor.pushUndoStop();
@@ -368,6 +385,7 @@ export abstract class DeleteWordCommand extends EditorCommand {
 }
 
 export class DeleteWordLeftCommand extends DeleteWordCommand {
+	protected override readonly _deleteDirection = 'left' as const;
 	protected _delete(ctx: DeleteWordContext, wordNavigationType: WordNavigationType): Range {
 		const r = WordOperations.deleteWordLeft(ctx, wordNavigationType);
 		if (r) {
@@ -378,6 +396,7 @@ export class DeleteWordLeftCommand extends DeleteWordCommand {
 }
 
 export class DeleteWordRightCommand extends DeleteWordCommand {
+	protected override readonly _deleteDirection = 'right' as const;
 	protected _delete(ctx: DeleteWordContext, wordNavigationType: WordNavigationType): Range {
 		const r = WordOperations.deleteWordRight(ctx, wordNavigationType);
 		if (r) {

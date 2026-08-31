@@ -57,8 +57,8 @@ export class CursorMoveCommands {
 
 	private static _moveToLineStart(viewModel: IViewModel, cursor: CursorState, inSelectionMode: boolean): PartialCursorState {
 		const currentViewStateColumn = cursor.viewState.position.column;
-		const currentModelStateColumn = cursor.modelState.position.column;
-		const isFirstLineOfWrappedLine = currentViewStateColumn === currentModelStateColumn;
+		// Not by column equality: concealed text shifts view columns on an unwrapped line.
+		const isFirstLineOfWrappedLine = cursor.viewState.position.lineNumber === viewModel.coordinatesConverter.convertModelPositionToViewPosition(new Position(cursor.modelState.position.lineNumber, 1)).lineNumber;
 
 		const currentViewStatelineNumber = cursor.viewState.position.lineNumber;
 		const firstNonBlankColumn = viewModel.getLineFirstNonWhitespaceColumn(currentViewStatelineNumber);

@@ -8,11 +8,14 @@ import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../../base/tes
 import { ICodeEditor } from '../../../../browser/editorBrowser.js';
 import { EditorCommand } from '../../../../browser/editorExtensions.js';
 import { Position } from '../../../../common/core/position.js';
+import { Range } from '../../../../common/core/range.js';
+import { ConcealedTextCursorStop } from '../../../../common/model.js';
 import { ILanguageConfigurationService } from '../../../../common/languages/languageConfigurationRegistry.js';
 import { deserializePipePositions, serializePipePositions, testRepeatedActionAndExtractPositions } from '../../../wordOperations/test/browser/wordTestUtils.js';
 import { CursorWordPartLeft, CursorWordPartLeftSelect, CursorWordPartRight, CursorWordPartRightSelect, DeleteWordPartLeft, DeleteWordPartRight } from '../../browser/wordPartOperations.js';
 import { StaticServiceAccessor } from './utils.js';
 import { TestLanguageConfigurationService } from '../../../../test/common/modes/testLanguageConfigurationService.js';
+import { withTestCodeEditor } from '../../../../test/browser/testCodeEditor.js';
 
 suite('WordPartOperations', () => {
 
@@ -283,5 +286,30 @@ suite('WordPartOperations', () => {
 		);
 		const actual = serializePipePositions(text, actualStops);
 		assert.deepStrictEqual(actual, EXPECTED);
+	});
+
+	test('word part navigation crosses concealed text instead of stalling inside it', () => {
+		withTestCodeEditor(['aa AbstractProxyBean bb'], {}, (editor) => {
+			editor.getModel()!.deltaDecorations([], [{
+				range: new Range(1, 4, 1, 21),
+				options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before } }
+			}]);
+
+			editor.setPosition(new Position(1, 1));
+			const rightStops: number[] = [];
+			for (let i = 0; i < 4; i++) {
+				cursorWordPartRight(editor);
+				rightStops.push(editor.getPosition()!.column);
+			}
+			// `aa`, the whole identifier in one step, then `bb`.
+			assert.deepStrictEqual(rightStops, [3, 4, 22, 24], 'the identifier is one step, not a place to get stuck in');
+
+			const leftStops: number[] = [];
+			for (let i = 0; i < 4; i++) {
+				cursorWordPartLeft(editor);
+				leftStops.push(editor.getPosition()!.column);
+			}
+			assert.deepStrictEqual(leftStops, [22, 4, 3, 1], 'and the same, mirrored');
+		});
 	});
 });
