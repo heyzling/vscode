@@ -123,6 +123,9 @@ const _allApiProposals = {
 	commentsDraftState: {
 		proposal: 'https://raw.githubusercontent.com/microsoft/vscode/main/src/vscode-dts/vscode.proposed.commentsDraftState.d.ts',
 	},
+	concealedText: {
+		proposal: 'https://raw.githubusercontent.com/microsoft/vscode/main/src/vscode-dts/vscode.proposed.concealedText.d.ts',
+	},
 	contribAccessibilityHelpContent: {
 		proposal: 'https://raw.githubusercontent.com/microsoft/vscode/main/src/vscode-dts/vscode.proposed.contribAccessibilityHelpContent.d.ts',
 	},

@@ -840,6 +840,9 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 				return extHostEditors.showTextDocument(document, columnOrOptions, preserveFocus);
 			},
 			createTextEditorDecorationType(options: vscode.DecorationRenderOptions): vscode.TextEditorDecorationType {
+				if (options.conceal) {
+					checkProposedApiEnabled(extension, 'concealedText');
+				}
 				return extHostEditors.createTextEditorDecorationType(extension, options);
 			},
 			onDidChangeActiveTextEditor(listener, thisArg?, disposables?) {

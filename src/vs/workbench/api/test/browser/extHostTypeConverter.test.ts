@@ -6,7 +6,7 @@
 
 import assert from 'assert';
 import * as extHostTypes from '../../common/extHostTypes.js';
-import { ChatAgentResult, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
+import { ChatAgentResult, ConcealRenderOptions, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, ThemableDecorationAttachmentRenderOptions, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
 import { isEmptyObject } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IWorkspaceTextEditDto } from '../../common/extHost.protocol.js';
@@ -175,6 +175,42 @@ suite('ExtHostTypeConverter', function () {
 		const dto2 = WorkspaceEdit.from(ws2);
 		const first2 = <IWorkspaceTextEditDto>dto2.edits[0];
 		assert.strictEqual(first2.textEdit.insertAsSnippet, true);
+	});
+
+	test('ConcealRenderOptions - a replacement keeps its content, with line feeds dropped', function () {
+		const long = ConcealRenderOptions.from({ replacement: { contentText: 'a' + '\u{1F3AF}'.repeat(20) } });
+		assert.strictEqual(long.replacement!.contentText, 'a' + '\u{1F3AF}'.repeat(20));
+
+		const short = ConcealRenderOptions.from({ replacement: { contentText: 'a\nb\r\nc' } });
+		assert.strictEqual(short.replacement!.contentText, 'abc', 'line feeds are dropped');
+
+		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'before' }).cursorStop, 'before');
+		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'after' }).cursorStop, 'after', 'auto is the default, so a declared side must survive');
+		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'auto' }).cursorStop, undefined, 'the default is left unsaid');
+
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'protect' }).deletionPolicy, 'protect');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'passthrough' }).deletionPolicy, 'passthrough');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'atomic' }).deletionPolicy, undefined, 'the default is left unsaid');
+		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: false }).revealOnEdit, false);
+		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: true }).revealOnEdit, undefined, 'the default is left unsaid');
+	});
+
+	test('ThemableDecorationAttachmentRenderOptions - attachment styling reaches the render options', function () {
+		const converted = ThemableDecorationAttachmentRenderOptions.from({
+			contentText: 'chip',
+			borderRadius: '3px',
+			fontSize: '10px',
+			fontFamily: 'monospace',
+			opacity: '0.8',
+			padding: '0 2px',
+			verticalAlign: 'middle',
+		});
+		assert.strictEqual(converted.borderRadius, '3px');
+		assert.strictEqual(converted.fontSize, '10px');
+		assert.strictEqual(converted.fontFamily, 'monospace');
+		assert.strictEqual(converted.opacity, '0.8');
+		assert.strictEqual(converted.padding, '0 2px');
+		assert.strictEqual(converted.verticalAlign, 'middle');
 	});
 });
 

@@ -29,7 +29,7 @@ import { RenderLineNumbersType } from '../../../editor/common/config/editorOptio
 import { IPosition } from '../../../editor/common/core/position.js';
 import * as editorRange from '../../../editor/common/core/range.js';
 import { ISelection } from '../../../editor/common/core/selection.js';
-import { IContentDecorationRenderOptions, IDecorationOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions } from '../../../editor/common/editorCommon.js';
+import { IConcealDecorationRenderOptions, IContentDecorationRenderOptions, IDecorationOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions } from '../../../editor/common/editorCommon.js';
 import * as encodedTokenAttributes from '../../../editor/common/encodedTokenAttributes.js';
 import * as languageSelector from '../../../editor/common/languageSelector.js';
 import * as languages from '../../../editor/common/languages.js';
@@ -515,12 +515,18 @@ export namespace ThemableDecorationAttachmentRenderOptions {
 			contentIconPath: options.contentIconPath ? pathOrURIToURI(options.contentIconPath) : undefined,
 			border: options.border,
 			borderColor: <string | types.ThemeColor>options.borderColor,
+			borderRadius: options.borderRadius,
 			fontStyle: options.fontStyle,
 			fontWeight: options.fontWeight,
+			fontSize: options.fontSize,
+			fontFamily: options.fontFamily,
 			textDecoration: options.textDecoration,
 			color: <string | types.ThemeColor>options.color,
 			backgroundColor: <string | types.ThemeColor>options.backgroundColor,
+			opacity: options.opacity,
+			verticalAlign: options.verticalAlign,
 			margin: options.margin,
+			padding: options.padding,
 			width: options.width,
 			height: options.height,
 		};
@@ -557,6 +563,24 @@ export namespace ThemableDecorationRenderOptions {
 			before: options.before ? ThemableDecorationAttachmentRenderOptions.from(options.before) : undefined,
 			after: options.after ? ThemableDecorationAttachmentRenderOptions.from(options.after) : undefined,
 		};
+	}
+}
+
+export namespace ConcealRenderOptions {
+	export function from(options: vscode.ConcealRenderOptions): IConcealDecorationRenderOptions {
+		const cursorStop = options.cursorStop === 'before' || options.cursorStop === 'after' ? options.cursorStop : undefined;
+		const deletionPolicy = options.deletionPolicy === 'passthrough' || options.deletionPolicy === 'protect' ? options.deletionPolicy : undefined;
+		const revealOnEdit = options.revealOnEdit === false ? false : undefined;
+		if (!options.replacement) {
+			return { cursorStop, deletionPolicy, revealOnEdit };
+		}
+		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
+		if (replacement.contentText) {
+			// Single line only; the length cap is the editor's setting.
+			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
+		}
+		const preserveWidth = options.preserveWidth === true ? true : undefined;
+		return { replacement, preserveWidth, cursorStop, deletionPolicy, revealOnEdit };
 	}
 }
 
@@ -610,6 +634,7 @@ export namespace DecorationRenderOptions {
 			overviewRulerColor: <string | types.ThemeColor>options.overviewRulerColor,
 			before: options.before ? ThemableDecorationAttachmentRenderOptions.from(options.before) : undefined,
 			after: options.after ? ThemableDecorationAttachmentRenderOptions.from(options.after) : undefined,
+			conceal: options.conceal ? ConcealRenderOptions.from(options.conceal) : undefined,
 		};
 	}
 }

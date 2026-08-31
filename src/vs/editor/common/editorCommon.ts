@@ -664,6 +664,30 @@ export interface IThemeDecorationRenderOptions {
 	 * @deprecated
 	 */
 	afterInjectedText?: IContentDecorationRenderOptions & { affectsLetterSpacing?: boolean };
+
+	/**
+	 * Conceal the decorated ranges, i.e. leave their text out of the rendered view.
+	 */
+	conceal?: IConcealDecorationRenderOptions;
+}
+
+/**
+ * @internal
+ */
+export interface IConcealDecorationRenderOptions {
+	replacement?: IContentDecorationRenderOptions;
+	preserveWidth?: boolean;
+	cursorStop?: 'before' | 'after';
+	deletionPolicy?: 'atomic' | 'passthrough' | 'protect';
+	revealOnEdit?: boolean;
+}
+
+/**
+ * Conceal options of a single decoration instance. Only the replacement varies per range.
+ * @internal
+ */
+export interface IConcealDecorationInstanceRenderOptions {
+	replacement?: IContentDecorationRenderOptions;
 }
 
 /**
@@ -724,6 +748,7 @@ export interface IThemeDecorationInstanceRenderOptions {
 export interface IDecorationInstanceRenderOptions extends IThemeDecorationInstanceRenderOptions {
 	light?: IThemeDecorationInstanceRenderOptions;
 	dark?: IThemeDecorationInstanceRenderOptions;
+	conceal?: IConcealDecorationInstanceRenderOptions;
 }
 
 /**

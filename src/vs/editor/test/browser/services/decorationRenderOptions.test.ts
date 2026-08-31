@@ -8,6 +8,7 @@ import * as platform from '../../../../base/common/platform.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { IDecorationRenderOptions } from '../../../common/editorCommon.js';
+import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../../../common/model.js';
 import { TestCodeEditorService, TestGlobalStyleSheet } from '../editorTestServices.js';
 import { TestColorTheme, TestThemeService } from '../../../../platform/theme/test/common/testThemeService.js';
 
@@ -27,6 +28,41 @@ suite('Decoration Render Options', () => {
 		store.add(s.registerDecorationType('test', 'example', options));
 		assert.notStrictEqual(s.resolveDecorationOptions('example', false), undefined);
 	});
+	test('a per-range conceal replacement overrides the type replacement, keeping its behaviour', () => {
+		const s = store.add(new TestCodeEditorService(themeServiceMock));
+		store.add(s.registerDecorationType('test', 'conceal-parent', {
+			conceal: { replacement: { contentText: 'key' }, cursorStop: 'before', deletionPolicy: 'protect', revealOnEdit: false }
+		}));
+		store.add(s.registerDecorationType('test', 'conceal-parent-sub', {
+			conceal: { replacement: { contentText: 'Place order\nsecond line' } }
+		} as IDecorationRenderOptions, 'conceal-parent'));
+
+		const resolved = s.resolveDecorationOptions('conceal-parent-sub', false);
+		assert.strictEqual(resolved.concealedText?.replacement?.content, 'Place ordersecond line', 'the range draws its own string, with line feeds dropped');
+		assert.strictEqual(resolved.concealedText?.cursorStop, ConcealedTextCursorStop.Before, 'the caret stop stays the type\'s');
+		assert.strictEqual(resolved.concealedText?.deletionPolicy, ConcealedTextDeletionPolicy.Protect, 'the deletion policy stays the type\'s');
+		assert.strictEqual(resolved.concealedText?.revealOnEdit, false, 'revealOnEdit stays the type\'s');
+
+		const parent = s.resolveDecorationOptions('conceal-parent', false);
+		assert.strictEqual(parent.concealedText?.replacement?.content, 'key', 'ranges without their own replacement keep the type\'s');
+	});
+
+	test('per-range conceal replacements at scale keep subtype registration bounded', () => {
+		const s = store.add(new TestCodeEditorService(themeServiceMock));
+		store.add(s.registerDecorationType('test', 'perf-parent', { conceal: {} }));
+		const started = Date.now();
+		for (let i = 0; i < 5000; i++) {
+			s.registerDecorationType('test', `perf-parent-${i}`, { conceal: { replacement: { contentText: `Value ${i}` } } } as IDecorationRenderOptions, 'perf-parent');
+		}
+		const resolved = s.resolveDecorationOptions('perf-parent-4999', false);
+		const elapsed = Date.now() - started;
+		for (let i = 0; i < 5000; i++) {
+			s.removeDecorationType(`perf-parent-${i}`);
+		}
+		assert.strictEqual(resolved.concealedText?.replacement?.content, 'Value 4999');
+		assert.ok(elapsed < 2000, `5000 per-range subtypes registered and resolved in ${elapsed}ms`);
+	});
+
 	test('remove decoration type', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));
 		s.registerDecorationType('test', 'example', options);

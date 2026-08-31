@@ -13,8 +13,8 @@ import * as strings from '../../../base/common/strings.js';
 import { URI } from '../../../base/common/uri.js';
 import { ICodeEditor, IDiffEditor } from '../editorBrowser.js';
 import { ICodeEditorOpenHandler, ICodeEditorService } from './codeEditorService.js';
-import { IContentDecorationRenderOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions, isThemeColor } from '../../common/editorCommon.js';
-import { IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
+import { IContentDecorationRenderOptions, IDecorationInstanceRenderOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions, isThemeColor } from '../../common/editorCommon.js';
+import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
 import { IResourceEditorInput } from '../../../platform/editor/common/editor.js';
 import { IColorTheme, IThemeService } from '../../../platform/theme/common/themeService.js';
 import { ThemeColor } from '../../../base/common/themables.js';
@@ -399,6 +399,8 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 	private readonly _parentTypeKey: string;
 	private _beforeContentRules: DecorationCSSRules | null;
 	private _afterContentRules: DecorationCSSRules | null;
+	private _concealReplacementRules: DecorationCSSRules | null;
+	private readonly _concealReplacementText: string | undefined;
 
 	constructor(themeService: IThemeService, styleSheet: GlobalStyleSheet | RefCountedStyleSheet, providerArgs: ProviderArguments) {
 		this._styleSheet = styleSheet;
@@ -408,6 +410,14 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 
 		this._beforeContentRules = new DecorationCSSRules(ModelDecorationCSSRuleType.BeforeContentClassName, providerArgs, themeService);
 		this._afterContentRules = new DecorationCSSRules(ModelDecorationCSSRuleType.AfterContentClassName, providerArgs, themeService);
+
+		// A per-range replacement is data on the model decoration; only its styling is CSS.
+		const instanceReplacement = (providerArgs.options as IDecorationInstanceRenderOptions).conceal?.replacement;
+		this._concealReplacementRules = null;
+		if (instanceReplacement && instanceReplacement.contentText) {
+			this._concealReplacementText = instanceReplacement.contentText.replace(/[\r\n]/g, '');
+			this._concealReplacementRules = new DecorationCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName, providerArgs, themeService);
+		}
 	}
 
 	public getOptions(codeEditorService: AbstractCodeEditorService, writable: boolean): IModelDecorationOptions {
@@ -417,6 +427,19 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 		}
 		if (this._afterContentRules) {
 			options.afterContentClassName = this._afterContentRules.className;
+		}
+		if (this._concealReplacementText && options.concealedText) {
+			// Only the replacement varies per range.
+			options.concealedText = {
+				cursorStop: options.concealedText.cursorStop,
+				deletionPolicy: options.concealedText.deletionPolicy,
+				revealOnEdit: options.concealedText.revealOnEdit,
+				replacement: {
+					content: this._concealReplacementText,
+					inlineClassName: this._concealReplacementRules?.hasContent ? this._concealReplacementRules.className : undefined,
+					inlineClassNameAffectsLetterSpacing: this._concealReplacementRules?.hasLetterSpacing
+				}
+			};
 		}
 		return options;
 	}
@@ -433,6 +456,10 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 		if (this._afterContentRules) {
 			this._afterContentRules.dispose();
 			this._afterContentRules = null;
+		}
+		if (this._concealReplacementRules) {
+			this._concealReplacementRules.dispose();
+			this._concealReplacementRules = null;
 		}
 		this._styleSheet.unref();
 	}
@@ -469,6 +496,7 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 	public stickiness: TrackedRangeStickiness | undefined;
 	public beforeInjectedText: InjectedTextOptions | undefined;
 	public afterInjectedText: InjectedTextOptions | undefined;
+	public concealedText: ConcealedTextOptions | undefined;
 
 	constructor(description: string, themeService: IThemeService, styleSheet: GlobalStyleSheet | RefCountedStyleSheet, providerArgs: ProviderArguments) {
 		this.description = description;
@@ -521,6 +549,34 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 			};
 		}
 
+		if (providerArgs.options.conceal) {
+			const cursorStop = providerArgs.options.conceal.cursorStop === 'before' ? ConcealedTextCursorStop.Before
+				: providerArgs.options.conceal.cursorStop === 'after' ? ConcealedTextCursorStop.After
+					: ConcealedTextCursorStop.Auto;
+			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'passthrough' ? ConcealedTextDeletionPolicy.Passthrough
+				: providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
+					: ConcealedTextDeletionPolicy.Atomic;
+			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
+			const replacement = providerArgs.options.conceal.replacement;
+			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
+			if (replacement && replacement.contentText) {
+				const replacementInlineData = createInlineCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName);
+				this.concealedText = {
+					replacement: {
+						content: replacement.contentText,
+						inlineClassName: replacementInlineData?.className,
+						inlineClassNameAffectsLetterSpacing: replacementInlineData?.hasLetterSpacing
+					},
+					preserveWidth,
+					cursorStop,
+					deletionPolicy,
+					revealOnEdit
+				};
+			} else {
+				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit };
+			}
+		}
+
 		this.glyphMarginClassName = createCSSRules(ModelDecorationCSSRuleType.GlyphMarginClassName);
 
 		const options = providerArgs.options;
@@ -567,7 +623,8 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 			overviewRuler: this.overviewRuler,
 			stickiness: this.stickiness,
 			before: this.beforeInjectedText,
-			after: this.afterInjectedText
+			after: this.afterInjectedText,
+			concealedText: this.concealedText
 		};
 	}
 
@@ -724,6 +781,12 @@ class DecorationCSSRules {
 				lightCSS = this.getCSSTextForModelDecorationContentClassName(options.light && options.light.afterInjectedText);
 				darkCSS = this.getCSSTextForModelDecorationContentClassName(options.dark && options.dark.afterInjectedText);
 				break;
+			case ModelDecorationCSSRuleType.ConcealReplacementClassName:
+				// A replacement has no per-theme options; a `ThemeColor` follows the theme.
+				unthemedCSS = this.getCSSTextForModelDecorationContentClassName(options.conceal?.replacement);
+				lightCSS = '';
+				darkCSS = '';
+				break;
 			default:
 				throw new Error('Unknown rule type: ' + this._ruleType);
 		}
@@ -866,6 +929,7 @@ const enum ModelDecorationCSSRuleType {
 	AfterContentClassName = 4,
 	BeforeInjectedTextClassName = 5,
 	AfterInjectedTextClassName = 6,
+	ConcealReplacementClassName = 7,
 }
 
 class CSSNameHelper {
