@@ -203,7 +203,8 @@ class ModelLineProjection implements IModelLineProjection {
 			maxColumn,
 			startVisibleColumn,
 			tokens,
-			inlineDecorations
+			inlineDecorations,
+			lineBreakData.injectionOptions !== null
 		);
 	}
 
@@ -295,7 +296,8 @@ class IdentityModelLineProjection implements IModelLineProjection {
 			lineContent.length + 1,
 			0,
 			lineTokens.inflate(),
-			null
+			null,
+			false
 		);
 	}
 

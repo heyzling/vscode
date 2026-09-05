@@ -895,9 +895,10 @@ export class ViewModel extends Disposable implements IViewModel {
 
 	private _getViewLineRenderingData(lineNumber: number, inlineDecorations: InlineDecoration[], hasVariableFonts: boolean, decorations: ViewModelDecoration[]): ViewLineRenderingData {
 		const mightContainRTL = this.model.mightContainRTL();
-		const mightContainNonBasicASCII = this.model.mightContainNonBasicASCII();
 		const tabSize = this.getTabSize();
 		const lineData = this._lines.getViewLineData(lineNumber);
+		// Injected text is not in the buffer, so its glyphs are outside what the buffer's flag knows.
+		const mightContainNonBasicASCII = this.model.mightContainNonBasicASCII() || lineData.hasInjectedText;
 
 		if (lineData.inlineDecorations) {
 			inlineDecorations = [

@@ -279,6 +279,10 @@ export class ViewLineData {
 	 * Additional inline decorations for this line.
 	*/
 	public readonly inlineDecorations: readonly InlineDecoration[] | null;
+	/**
+	 * Whether `content` carries injected text, which the model's own character flags do not cover.
+	 */
+	public readonly hasInjectedText: boolean;
 
 	constructor(
 		content: string,
@@ -287,7 +291,8 @@ export class ViewLineData {
 		maxColumn: number,
 		startVisibleColumn: number,
 		tokens: IViewLineTokens,
-		inlineDecorations: readonly InlineDecoration[] | null
+		inlineDecorations: readonly InlineDecoration[] | null,
+		hasInjectedText: boolean
 	) {
 		this.content = content;
 		this.continuesWithWrappedLine = continuesWithWrappedLine;
@@ -296,6 +301,7 @@ export class ViewLineData {
 		this.startVisibleColumn = startVisibleColumn;
 		this.tokens = tokens;
 		this.inlineDecorations = inlineDecorations;
+		this.hasInjectedText = hasInjectedText;
 	}
 }
 

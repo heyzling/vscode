@@ -528,6 +528,25 @@ suite('ViewModel', () => {
 		);
 	});
 
+	test('an emoji replacement takes an ASCII line off the ASCII rendering path', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				assert.strictEqual(viewModel.getViewLineRenderingData(1).isBasicASCII, true);
+
+				model.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', concealedText: { replacement: { content: '✅' } } }
+				}]);
+
+				assert.strictEqual(viewModel.getViewLineRenderingData(1).isBasicASCII, false, 'the glyph is two cells wide and one code unit; it must be measured, not counted');
+			}
+		);
+	});
+
 	test('per-range replacements at scale keep decoration set and projection bounded', () => {
 		const lines: string[] = [];
 		for (let i = 0; i < 5000; i++) {
