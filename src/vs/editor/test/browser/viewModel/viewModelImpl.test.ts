@@ -14,6 +14,9 @@ import { testViewModel } from './testViewModel.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { createTextModel } from '../../common/testTextModel.js';
 import { createCodeEditorServices, instantiateTestCodeEditor } from '../testCodeEditor.js';
+import { EncodedTokenizationResult, TokenizationRegistry } from '../../../common/languages.js';
+import { MetadataConsts } from '../../../common/encodedTokenAttributes.js';
+import { NullState } from '../../../common/languages/nullTokenize.js';
 
 suite('ViewModel', () => {
 
@@ -545,6 +548,39 @@ suite('ViewModel', () => {
 				assert.strictEqual(viewModel.getViewLineRenderingData(1).isBasicASCII, false, 'the glyph is two cells wide and one code unit; it must be measured, not counted');
 			}
 		);
+	});
+
+	test('a replacement is drawn with the token of the text it stands for', () => {
+		const disposables = new DisposableStore();
+		const languageId = 'concealTokens';
+		const plain = (1 << MetadataConsts.FOREGROUND_OFFSET) >>> 0;
+		const tag = (2 << MetadataConsts.FOREGROUND_OFFSET) >>> 0;
+		disposables.add(TokenizationRegistry.register(languageId, {
+			getInitialState: () => NullState,
+			tokenize: undefined!,
+			// 'is ' plain, '#done' tag, ' by now' plain
+			tokenizeEncoded: (line, hasEOL, state) => new EncodedTokenizationResult(new Uint32Array([0, plain, 3, tag, 8, plain]), [], state),
+		}));
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 9),
+					options: { description: 'test', concealedText: { replacement: { content: '✅' } } }
+				}]);
+				model.tokenization.forceTokenization(1);
+
+				const tokens = viewModel.getViewLineRenderingData(1).tokens;
+				assert.strictEqual(viewModel.getLineContent(1), 'is ✅ by now');
+				assert.strictEqual(tokens.getMetadata(tokens.findTokenIndexAtOffset(3)), tag, 'the glyph carries the tag token, not the default one');
+				assert.strictEqual(tokens.getMetadata(tokens.findTokenIndexAtOffset(0)), plain);
+			},
+			languageId
+		);
+		disposables.dispose();
 	});
 
 	test('per-range replacements at scale keep decoration set and projection bounded', () => {

@@ -165,7 +165,9 @@ class ModelLineProjection implements IModelLineProjection {
 		const lineInlineDecorations = computer.getInlineDecorations(modelLineNumber);
 		const lineTokens = model.tokenization.getLineTokens(modelLineNumber);
 		const lineWithoutConcealedText = concealedRanges ? lineTokens.withDeleted(concealedRanges) : lineTokens;
-		const lineWithInjections = getLineTokensWithInjections(lineWithoutConcealedText, injectionOptions, injectionOffsets);
+		// A replacement is drawn with the tokens of the text it stands for.
+		const injectionOptionsAsDrawn = concealedRanges ? lineBreakData.withReplacementTokens(lineTokens) : injectionOptions;
+		const lineWithInjections = getLineTokensWithInjections(lineWithoutConcealedText, injectionOptionsAsDrawn, injectionOffsets);
 
 		for (let outputLineIndex = outputLineIdx; outputLineIndex < outputLineIdx + lineCount; outputLineIndex++) {
 			const globalIndex = globalStartIndex + outputLineIndex - outputLineIdx;

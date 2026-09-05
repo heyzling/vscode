@@ -13,6 +13,7 @@ import { Position } from './core/position.js';
 import { OffsetRange } from './core/ranges/offsetRange.js';
 import { ConcealedTextCursorStop, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
 import { LineConcealedText, LineInjectedText } from './textModelEvents.js';
+import { LineTokens, TokenArray, TokenInfo } from './tokens/lineTokens.js';
 
 /**
  * *input*:
@@ -122,6 +123,24 @@ export class ModelLineProjectionData {
 			return false;
 		}
 		return this.concealOffsets.indexOf(this.injectionOffsets[injectionIndex]) !== -1;
+	}
+
+	/**
+	 * Returns the injection options with each replacement tokenized like the text it stands
+	 * for: one token, with the metadata found at the concealed range's start. Options that
+	 * already carry tokens are kept.
+	 */
+	public withReplacementTokens(lineTokens: LineTokens): InjectedTextOptions[] | null {
+		if (this.injectionOptions === null || this.concealOffsets === null) {
+			return this.injectionOptions;
+		}
+		return this.injectionOptions.map((options, index) => {
+			if (options.tokens || !this.standsForConcealedText(index)) {
+				return options;
+			}
+			const metadata = lineTokens.getMetadata(lineTokens.findTokenIndexAtOffset(this.injectionOffsets![index]));
+			return { ...options, tokens: TokenArray.create([new TokenInfo(options.content.length, metadata)]) };
+		});
 	}
 
 	/**

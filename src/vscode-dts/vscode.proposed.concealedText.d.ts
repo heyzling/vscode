@@ -24,8 +24,9 @@ declare module 'vscode' {
 		 * Rendered in place of the concealed text. It is drawn, not inserted: it is part of no
 		 * document position and is never selected or copied. Defaults to rendering nothing.
 		 *
-		 * Line feeds are dropped from `contentText`. The drawn length is capped by the
-		 * `editor.conceal.maximumReplacementLength` setting, a cut marked with `…`.
+		 * It is drawn in the color and font style of the text it stands for, unless the options
+		 * set their own. Line feeds are dropped from `contentText`. The drawn length is capped by
+		 * the `editor.conceal.maximumReplacementLength` setting, a cut marked with `…`.
 		 */
 		replacement?: ThemableDecorationAttachmentRenderOptions;
 
