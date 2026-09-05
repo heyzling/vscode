@@ -342,6 +342,22 @@ export class ModelLineProjectionData {
 		return result;
 	}
 
+	/**
+	 * The nearer end of a concealed replacement, for a vertical move landing inside it. Returns
+	 * `undefined` for horizontal affinities and for injected text that is not a replacement.
+	 */
+	private nearerConcealedEdge(injectedText: { offsetInInputWithInjections: number; length: number; injectedTextIndex: number }, offset: number, affinity: PositionAffinity): number | undefined {
+		if (affinity !== PositionAffinity.LeftOfInjectedText && affinity !== PositionAffinity.RightOfInjectedText) {
+			return undefined;
+		}
+		if (!this.standsForConcealedText(injectedText.injectedTextIndex)) {
+			return undefined;
+		}
+		const start = injectedText.offsetInInputWithInjections;
+		const end = start + injectedText.length;
+		return offset - start <= end - offset ? start : end;
+	}
+
 	private normalizeOffsetInInputWithInjectionsAroundInjections(offsetInInputWithInjections: number, affinity: PositionAffinity): number {
 		const injectedText = this.getInjectedTextAtOffset(offsetInInputWithInjections);
 		if (!injectedText) {
@@ -377,6 +393,10 @@ export class ModelLineProjectionData {
 				// The place in front of a replacement is the range start, not a side of the injected text.
 				return offsetInInputWithInjections;
 			}
+			const nearer = this.nearerConcealedEdge(injectedText, offsetInInputWithInjections, affinity);
+			if (nearer !== undefined) {
+				return nearer;
+			}
 
 			let result = injectedText.offsetInInputWithInjections + injectedText.length;
 			let index = injectedText.injectedTextIndex;
@@ -390,6 +410,10 @@ export class ModelLineProjectionData {
 			if (offsetInInputWithInjections === injectedText.offsetInInputWithInjections + injectedText.length && this.standsForConcealedText(injectedText.injectedTextIndex)) {
 				// Mirror: the place behind a replacement is the range end.
 				return offsetInInputWithInjections;
+			}
+			const nearer = this.nearerConcealedEdge(injectedText, offsetInInputWithInjections, affinity);
+			if (nearer !== undefined) {
+				return nearer;
 			}
 
 			// affinity is left

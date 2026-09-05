@@ -7093,6 +7093,28 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('vertical motion lands on the nearer end of a concealed replacement', () => {
+		withTestCodeEditor(['aaaaaaaaaaaaaaa', 'is #done by now', 'bbbbbbbbbbbbbbb'], {}, (editor, viewModel) => {
+			editor.getModel()!.deltaDecorations([], [{
+				range: new Range(2, 4, 2, 9),
+				options: { description: 'test-conceal', concealedText: { replacement: { content: '[done]' } } }
+			}]);
+
+			// The replacement covers view columns 4 to 9, so its ends are model columns 4 and 9.
+			for (const [column, landing] of [[5, 4], [6, 4], [7, 4], [8, 9], [9, 9]]) {
+				moveTo(editor, viewModel, 1, column);
+				CoreNavigationCommands.CursorDown.runCoreEditorCommand(viewModel, {});
+				const down = viewModel.getSelection().positionColumn;
+
+				moveTo(editor, viewModel, 3, column);
+				CoreNavigationCommands.CursorUp.runCoreEditorCommand(viewModel, {});
+				const up = viewModel.getSelection().positionColumn;
+
+				assert.deepStrictEqual([down, up], [landing, landing], `column ${column} from either direction`);
+			}
+		});
+	});
+
 	test('a caret is put outside a range concealed around it', () => {
 		withTestCodeEditor(ID_LINE, {}, (editor, viewModel) => {
 			editor.setSelection(new Selection(1, 5, 1, 5));
