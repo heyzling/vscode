@@ -6789,6 +6789,27 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('is crossed in one step however long the replacement is', () => {
+		// The crossing must not depend on how long the replacement is.
+		for (const content of ['✅', '✅ done', 'done']) {
+			withConcealedRange(LINE, TAG, { replacement: { content } }, {}, (editor, viewModel) => {
+				moveTo(editor, viewModel, 1, 4);
+				assert.deepStrictEqual(
+					columnsWhileMoving(editor, viewModel, 2, () => moveRight(editor, viewModel)),
+					[4, 9, 10],
+					`to the right, drawn as ${content}`
+				);
+
+				moveTo(editor, viewModel, 1, 9);
+				assert.deepStrictEqual(
+					columnsWhileMoving(editor, viewModel, 2, () => moveLeft(editor, viewModel)),
+					[9, 4, 3],
+					`to the left, drawn as ${content}`
+				);
+			});
+		}
+	});
+
 	test('holds no position of its own', () => {
 		withTag({}, (editor, viewModel) => {
 			const landedAt = [5, 6, 8].map(column => {

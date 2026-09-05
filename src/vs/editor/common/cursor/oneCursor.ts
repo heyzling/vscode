@@ -94,7 +94,8 @@ export class Cursor {
 		const sStartPosition = viewState.selectionStart.getStartPosition();
 		const sEndPosition = viewState.selectionStart.getEndPosition();
 
-		const validPosition = viewModel.normalizePosition(position, PositionAffinity.None);
+		// The state's own affinity: a caret in a replacement belongs on the side it moved towards.
+		const validPosition = viewModel.normalizePosition(position, viewState.positionAffinity);
 		const validSStartPosition = this._validatePositionWithCache(viewModel, sStartPosition, position, validPosition);
 		const validSEndPosition = this._validatePositionWithCache(viewModel, sEndPosition, sStartPosition, validSStartPosition);
 
