@@ -198,7 +198,19 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 	for (let moved = true; moved;) {
 		moved = false;
 		for (const range of concealed) {
-			if (column < range.startColumn || column > range.endColumn) {
+			const replacement = range.options.replacement;
+			let from: number;
+			let to: number;
+			if (replacement && replacement.content.length > 0) {
+				// Drawn: a caret stop on each side, so only a column strictly inside moves.
+				from = range.startColumn + 1;
+				to = range.endColumn - 1;
+			} else {
+				// Nothing drawn: both ends are the same place, so a column on either moves too.
+				from = range.startColumn;
+				to = range.endColumn;
+			}
+			if (column < from || column > to) {
 				continue;
 			}
 			const end = forward ? range.endColumn : range.startColumn;

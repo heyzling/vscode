@@ -577,6 +577,25 @@ suite('WordOperations', () => {
 		});
 	});
 
+	test('word navigation stops at the far end of a drawn concealed range', () => {
+		// Both ends of a drawn range are caret stops.
+		withTestCodeEditor(['is #done by now'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [{
+				range: new Range(1, 4, 1, 9),
+				options: { description: 'test-conceal', concealedText: { replacement: { content: '✅ done' } } }
+			}]);
+
+			editor.setPosition(new Position(1, 4));
+			cursorWordRight(editor);
+			assert.deepStrictEqual(editor.getPosition(), new Position(1, 9), 'right: the end of the range, not the word past it');
+
+			editor.setPosition(new Position(1, 9));
+			cursorWordLeft(editor);
+			assert.deepStrictEqual(editor.getPosition(), new Position(1, 4), 'left: the start of the range, not the line start');
+		});
+	});
+
 	test('deleteWordLeft takes concealed text whole', () => {
 		withTestCodeEditor(['is #done by now'], {}, (editor, _) => {
 			const model = editor.getModel()!;
