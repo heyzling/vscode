@@ -6920,6 +6920,25 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('follows the conceal option when it is toggled', () => {
+		withTag({}, (editor, viewModel) => {
+			editor.updateOptions({ conceal: { enabled: false } });
+			moveTo(editor, viewModel, 1, 6);
+			assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(1, 6), 'off: the caret rests inside the tag');
+			moveTo(editor, viewModel, 1, 9);
+			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'is #don by now', 'off: one character');
+		});
+
+		withTag({ conceal: { enabled: false } }, (editor, viewModel) => {
+			editor.updateOptions({ conceal: { enabled: true } });
+			moveTo(editor, viewModel, 1, 6);
+			assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(1, 9), 'on: the caret leaves the tag');
+			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'is  by now', 'on: the whole tag');
+		});
+	});
+
 	test('gives a replacement a side of the range for each of its own', () => {
 		withTag({}, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 4);

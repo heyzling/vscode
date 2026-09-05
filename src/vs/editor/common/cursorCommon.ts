@@ -105,6 +105,7 @@ export class CursorConfiguration {
 			|| e.hasChanged(EditorOption.readOnly)
 			|| e.hasChanged(EditorOption.wordSegmenterLocales)
 			|| e.hasChanged(EditorOption.overtypeOnPaste)
+			|| e.hasChanged(EditorOption.conceal)
 		);
 	}
 
