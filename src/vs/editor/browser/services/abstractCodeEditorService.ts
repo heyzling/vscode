@@ -431,9 +431,7 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 		if (this._concealReplacementText && options.concealedText) {
 			// Only the replacement varies per range.
 			options.concealedText = {
-				cursorStop: options.concealedText.cursorStop,
-				deletionPolicy: options.concealedText.deletionPolicy,
-				revealOnEdit: options.concealedText.revealOnEdit,
+				...options.concealedText,
 				replacement: {
 					content: this._concealReplacementText,
 					inlineClassName: this._concealReplacementRules?.hasContent ? this._concealReplacementRules.className : undefined,
