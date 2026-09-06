@@ -7,6 +7,10 @@ declare module 'vscode' {
 
 	// https://github.com/microsoft/vscode/issues/171074
 
+	// Concealing whole lines is out of scope here. A hidden row raises questions this API does
+	// not answer: what a deletion does at the seam between hidden and visible rows, and what the
+	// line-wise commands operate on. That work is kept on the `conceal-1.135-lines` branch.
+
 	export interface DecorationRenderOptions {
 		/**
 		 * Conceal the decorated ranges: their text is left out of the rendered view while the
