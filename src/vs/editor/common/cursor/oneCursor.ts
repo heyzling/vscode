@@ -4,7 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { CursorState, ICursorSimpleModel, SelectionStartKind, SingleCursorState } from '../cursorCommon.js';
-import { stateOutsideConcealedText } from './cursorConcealedText.js';
+import { positionOutsideConcealedLines, stateOutsideConcealedText } from './cursorConcealedText.js';
 import { CursorContext } from './cursorContext.js';
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
@@ -146,6 +146,16 @@ export class Cursor {
 			const leftoverVisibleColumns = modelState.position.equals(position) ? modelState.leftoverVisibleColumns : 0;
 
 			modelState = new SingleCursorState(selectionStart, modelState.selectionStartKind, selectionStartLeftoverVisibleColumns, position, leftoverVisibleColumns);
+		}
+
+		// Off a concealed line first; the range normalisation below settles the column.
+		const lineOutside = positionOutsideConcealedLines(modelState.position, context.model, modelState.positionAffinity, context.cursorConfig.concealedText);
+		if (lineOutside) {
+			const selectionStartOutsideLines = modelState.selectionStart.isEmpty() && modelState.selectionStart.getStartPosition().equals(modelState.position)
+				? Range.fromPositions(lineOutside, lineOutside)
+				: modelState.selectionStart;
+			modelState = new SingleCursorState(selectionStartOutsideLines, modelState.selectionStartKind, modelState.selectionStartLeftoverVisibleColumns, lineOutside, modelState.leftoverVisibleColumns, modelState.positionAffinity);
+			viewState = null;
 		}
 
 		// On every state: a range can be concealed around a cursor that has not moved.

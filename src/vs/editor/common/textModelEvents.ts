@@ -314,7 +314,8 @@ export class LineConcealedText {
 	public static fromDecorations(decorations: IModelDecoration[], lineNumber: number): LineConcealedText[] {
 		const result: LineConcealedText[] = [];
 		for (const decoration of decorations) {
-			if (!decoration.options.concealedText) {
+			if (!decoration.options.concealedText || decoration.options.concealedText.line) {
+				// A `line` decoration hides its row; it does not go through inline concealment.
 				continue;
 			}
 			const range = decoration.range;

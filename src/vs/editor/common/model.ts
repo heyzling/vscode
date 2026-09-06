@@ -395,6 +395,12 @@ export interface ConcealedTextOptions {
 	readonly cursorStop?: ConcealedTextCursorStop;
 
 	/**
+	 * If set, the whole line is left out of the view. The range is an anchor that identifies
+	 * the line; its extent is not consulted. Defaults to false.
+	 */
+	readonly line?: boolean;
+
+	/**
 	 * If set, the {@link replacement} is drawn at the rendered width of the concealed text:
 	 * padded when narrower, clipped with `…` when wider. Defaults to false.
 	 */
@@ -954,6 +960,13 @@ export interface ITextModel {
 	 * @internal
 	 */
 	getLineConcealedText(lineNumber: number, ownerId?: number): LineConcealedText[];
+
+	/**
+	 * Get the lines concealed entirely ({@link ConcealedTextOptions.line}), as one empty range
+	 * per line.
+	 * @internal
+	 */
+	getConcealedLineRanges(ownerId?: number): Range[];
 
 	/**
 	 * Get the text length for a certain line.

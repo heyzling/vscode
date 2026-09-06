@@ -583,6 +583,110 @@ suite('ViewModel', () => {
 		disposables.dispose();
 	});
 
+	test('line: true leaves the decorated row out of the view, and the range is only an anchor', () => {
+		testViewModel(
+			[
+				'text above',
+				'```generated',
+				'text below'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					// The extent covers part of the line only.
+					range: new Range(2, 1, 2, 4),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+
+				assert.strictEqual(viewModel.getLineCount(), 2);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'text above');
+				assert.deepStrictEqual(viewModel.getLineContent(2), 'text below');
+			}
+		);
+	});
+
+	test('a concealed line composes with other hidden-area sources', () => {
+		testViewModel(
+			[
+				'a',
+				'b',
+				'c',
+				'd'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 1),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+				// Another source, as folding would.
+				viewModel.setHiddenAreas([new Range(3, 1, 3, 1)], 'test-folding');
+
+				assert.strictEqual(viewModel.getLineCount(), 2);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'a');
+				assert.deepStrictEqual(viewModel.getLineContent(2), 'd');
+			}
+		);
+	});
+
+	test('the last visible line is never concealed', () => {
+		testViewModel(
+			[
+				'a',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [
+					{ range: new Range(1, 1, 1, 1), options: { description: 'test', concealedText: { line: true } } },
+					{ range: new Range(2, 1, 2, 1), options: { description: 'test', concealedText: { line: true } } },
+				]);
+
+				assert.strictEqual(viewModel.getLineCount(), 1, 'a document keeps at least one visible row');
+			}
+		);
+	});
+
+	test('an edit inside a line-concealing range brings the row back', () => {
+		testViewModel(
+			[
+				'a',
+				'```fence',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 9),
+					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { line: true } }
+				}]);
+				assert.strictEqual(viewModel.getLineCount(), 2);
+
+				model.applyEdits([{ range: new Range(2, 4, 2, 5), text: 'X' }]);
+				assert.strictEqual(viewModel.getLineCount(), 3, 'the hidden text changed, so the row stops being hidden');
+			}
+		);
+	});
+
+	test('editor.conceal.enabled false keeps every row', () => {
+		testViewModel(
+			[
+				'a',
+				'```',
+				'b'
+			],
+			{ conceal: { enabled: false } },
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 1),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+
+				assert.strictEqual(viewModel.getLineCount(), 3);
+			}
+		);
+	});
+
 	test('per-range replacements at scale keep decoration set and projection bounded', () => {
 		const lines: string[] = [];
 		for (let i = 0; i < 5000; i++) {

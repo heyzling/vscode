@@ -5,7 +5,7 @@
 
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../model.js';
+import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, PositionAffinity } from '../model.js';
 import { LineConcealedText } from '../textModelEvents.js';
 
 /**
@@ -13,6 +13,51 @@ import { LineConcealedText } from '../textModelEvents.js';
  */
 export interface IConcealAwareModel {
 	getLineConcealedText(lineNumber: number): LineConcealedText[];
+}
+
+/**
+ * A model that knows which of its lines are concealed entirely.
+ */
+export interface IConcealedLinesAwareModel {
+	getConcealedLineRanges(): Range[];
+	getLineCount(): number;
+	getLineMaxColumn(lineNumber: number): number;
+}
+
+function isConcealedLinesAwareModel(model: object): model is IConcealedLinesAwareModel {
+	return typeof (model as IConcealedLinesAwareModel).getConcealedLineRanges === 'function';
+}
+
+/**
+ * Moves a position off a concealed line to the nearest visible line in the direction of travel,
+ * or below when there is none. Returns `null` when the position is not on a concealed line.
+ */
+export function positionOutsideConcealedLines(position: Position, model: object, affinity: PositionAffinity, enabled: boolean): Position | null {
+	if (!enabled || !isConcealedLinesAwareModel(model)) {
+		return null;
+	}
+	const ranges = model.getConcealedLineRanges();
+	if (ranges.length === 0) {
+		return null;
+	}
+	const hidden = new Set<number>();
+	for (const range of ranges) {
+		hidden.add(range.startLineNumber);
+	}
+	if (!hidden.has(position.lineNumber)) {
+		return null;
+	}
+	const lineCount = model.getLineCount();
+	const step = affinity === PositionAffinity.Left ? -1 : 1;
+	for (const direction of [step, -step]) {
+		for (let lineNumber = position.lineNumber + direction; lineNumber >= 1 && lineNumber <= lineCount; lineNumber += direction) {
+			if (!hidden.has(lineNumber)) {
+				return new Position(lineNumber, Math.min(position.column, model.getLineMaxColumn(lineNumber)));
+			}
+		}
+	}
+	// Every line is concealed; the view model guards against this.
+	return null;
 }
 
 export function isConcealAwareModel(model: object): model is IConcealAwareModel {

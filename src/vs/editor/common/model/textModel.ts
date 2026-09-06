@@ -1872,6 +1872,23 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		return LineConcealedText.fromDecorations(result, lineNumber);
 	}
 
+	public getConcealedLineRanges(ownerId: number = 0): Range[] {
+		const decorations = this._decorationsTree.getInjectedTextInInterval(this, 0, this._buffer.getLength(), ownerId);
+		const ranges: Range[] = [];
+		for (const decoration of decorations) {
+			const concealedText = decoration.options.concealedText;
+			if (!concealedText || !concealedText.line) {
+				continue;
+			}
+			if (this._concealRevealedDecorationIds.has(decoration.id)) {
+				continue;
+			}
+			const lineNumber = decoration.range.startLineNumber;
+			ranges.push(new Range(lineNumber, 1, lineNumber, 1));
+		}
+		return ranges;
+	}
+
 	private readonly _concealRevealedDecorationIds = new Set<string>();
 
 	/**
@@ -2546,6 +2563,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
 	readonly revealOnEdit: boolean;
+	readonly line: boolean;
 
 	private constructor(options: model.ConcealedTextOptions) {
 		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
@@ -2553,6 +2571,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
 		this.revealOnEdit = options.revealOnEdit ?? true;
+		this.line = options.line ?? false;
 	}
 }
 
@@ -2622,7 +2641,8 @@ export class ModelDecorationOptions implements model.IModelDecorationOptions {
 		this.lineHeight = options.lineHeight ? Math.min(options.lineHeight, LINE_HEIGHT_CEILING) : null;
 		this.fontSize = options.fontSize || null;
 		this.affectsFont = !!options.fontSize || !!options.fontFamily || !!options.fontWeight || !!options.fontStyle;
-		this.showIfCollapsed = options.showIfCollapsed || false;
+		// A line-concealing anchor may be empty and must stay queryable.
+		this.showIfCollapsed = options.showIfCollapsed || (options.concealedText?.line ?? false);
 		this.collapseOnReplaceEdit = options.collapseOnReplaceEdit || false;
 		this.overviewRuler = options.overviewRuler ? new ModelDecorationOverviewRulerOptions(options.overviewRuler) : null;
 		this.minimap = options.minimap ? new ModelDecorationMinimapOptions(options.minimap) : null;

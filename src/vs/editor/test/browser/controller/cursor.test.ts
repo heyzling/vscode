@@ -7134,6 +7134,21 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('the caret does not rest on a concealed line', () => {
+		withTestCodeEditor(['above', '```fence', 'below'], {}, (editor, viewModel) => {
+			editor.setSelection(new Selection(2, 3, 2, 3));
+			editor.getModel()!.deltaDecorations([], [{
+				range: new Range(2, 1, 2, 1),
+				options: { description: 'test-conceal', concealedText: { line: true } }
+			}]);
+
+			assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(3, 3), 'the caret moved to the visible line below');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(3), 'beXlow', 'typing lands on the visible line');
+			assert.strictEqual(editor.getModel()!.getLineContent(2), '```fence', 'the concealed line is untouched');
+		});
+	});
+
 	test('a caret is put outside a range concealed around it', () => {
 		withTestCodeEditor(ID_LINE, {}, (editor, viewModel) => {
 			editor.setSelection(new Selection(1, 5, 1, 5));

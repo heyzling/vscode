@@ -294,6 +294,10 @@ export class ViewModel extends Disposable implements IViewModel {
 			this._updateConfigurationViewLineCount.schedule();
 		}
 
+		if (e.hasChanged(EditorOption.conceal)) {
+			this._updateConcealedLineHiddenAreas();
+		}
+
 		if (e.hasChanged(EditorOption.readOnly)) {
 			// Must read again all decorations due to readOnly filtering
 			this._decorations.reset();
@@ -456,6 +460,9 @@ export class ViewModel extends Disposable implements IViewModel {
 			}
 		}
 
+		// Conceal decoration changes arrive here too, as injected-text changes.
+		this._updateConcealedLineHiddenAreas();
+
 		this._handleVisibleLinesChanged();
 	}
 
@@ -566,10 +573,34 @@ export class ViewModel extends Disposable implements IViewModel {
 			this._eventDispatcher.emitSingleViewEvent(new viewEvents.ViewDecorationsChangedEvent(e));
 			this._eventDispatcher.emitOutgoingEvent(new ModelDecorationsChangedEvent(e));
 		}));
+
+		this._updateConcealedLineHiddenAreas();
 	}
 
 	private readonly hiddenAreasModel = new HiddenAreasModel();
 	private previousHiddenAreas: readonly Range[] = [];
+	private readonly _concealHiddenAreasSource = {};
+
+	/**
+	 * Concealed lines are one more hidden-areas source, next to folding, fed from the model's
+	 * decorations.
+	 */
+	private _updateConcealedLineHiddenAreas(): void {
+		const conceal = this._configuration.options.get(EditorOption.conceal);
+		let ranges = conceal.enabled ? this.model.getConcealedLineRanges(this._editorId) : [];
+		if (ranges.length > 0) {
+			// Keep at least one visible line.
+			const hidden = new Set<number>();
+			for (const range of ranges) {
+				hidden.add(range.startLineNumber);
+			}
+			if (hidden.size >= this.model.getLineCount()) {
+				const lastHidden = Math.max(...hidden);
+				ranges = ranges.filter(r => r.startLineNumber !== lastHidden);
+			}
+		}
+		this.setHiddenAreas(ranges, this._concealHiddenAreasSource);
+	}
 
 	public getFontSizeAtPosition(position: IPosition): string | null {
 		const allowVariableFonts = this._configuration.options.get(EditorOption.effectiveAllowVariableFonts);

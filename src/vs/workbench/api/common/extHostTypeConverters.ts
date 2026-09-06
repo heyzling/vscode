@@ -572,7 +572,7 @@ export namespace ConcealRenderOptions {
 		const deletionPolicy = options.deletionPolicy === 'passthrough' || options.deletionPolicy === 'protect' ? options.deletionPolicy : undefined;
 		const revealOnEdit = options.revealOnEdit === false ? false : undefined;
 		if (!options.replacement) {
-			return { cursorStop, deletionPolicy, revealOnEdit };
+			return { cursorStop, deletionPolicy, revealOnEdit, line: options.line === true ? true : undefined };
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
 		if (replacement.contentText) {
@@ -580,7 +580,8 @@ export namespace ConcealRenderOptions {
 			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
 		}
 		const preserveWidth = options.preserveWidth === true ? true : undefined;
-		return { replacement, preserveWidth, cursorStop, deletionPolicy, revealOnEdit };
+		const line = options.line === true ? true : undefined;
+		return { replacement, preserveWidth, cursorStop, deletionPolicy, revealOnEdit, line };
 	}
 }
 

@@ -557,6 +557,7 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
+			const line = providerArgs.options.conceal.line === true;
 			if (replacement && replacement.contentText) {
 				const replacementInlineData = createInlineCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName);
 				this.concealedText = {
@@ -568,10 +569,11 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					preserveWidth,
 					cursorStop,
 					deletionPolicy,
-					revealOnEdit
+					revealOnEdit,
+					line
 				};
 			} else {
-				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit };
+				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit, line };
 			}
 		}
 
