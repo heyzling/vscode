@@ -668,6 +668,90 @@ suite('ViewModel', () => {
 		);
 	});
 
+	test('a deletion joining the line below into a concealed line brings the row back', () => {
+		testViewModel(
+			[
+				'a',
+				'<!-- x -->',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					// An empty anchor, away from the line break the edit takes.
+					range: new Range(2, 1, 2, 1),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+				assert.strictEqual(viewModel.getLineCount(), 2);
+
+				model.applyEdits([{ range: new Range(2, 11, 3, 1), text: '' }]);
+				assert.deepStrictEqual([viewModel.getLineContent(1), viewModel.getLineContent(2)], ['a', '<!-- x -->b'], 'the joined line is shown');
+			}
+		);
+	});
+
+	test('a deletion joining a concealed line into the line above brings the row back', () => {
+		testViewModel(
+			[
+				'a',
+				'<!-- x -->',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 11),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+				assert.strictEqual(viewModel.getLineCount(), 2);
+
+				model.applyEdits([{ range: new Range(1, 2, 2, 1), text: '' }]);
+				assert.deepStrictEqual([viewModel.getLineContent(1), viewModel.getLineContent(2)], ['a<!-- x -->', 'b'], 'the joined line is shown');
+			}
+		);
+	});
+
+	test('deleting a concealed line whole does not hide the line that takes its place', () => {
+		testViewModel(
+			[
+				'a',
+				'<!-- x -->',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 11),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+				assert.strictEqual(viewModel.getLineCount(), 2);
+
+				model.applyEdits([{ range: new Range(2, 1, 3, 1), text: '' }]);
+				assert.deepStrictEqual([viewModel.getLineContent(1), viewModel.getLineContent(2)], ['a', 'b'], 'the collapsed anchor hides nothing');
+			}
+		);
+	});
+
+	test('an edit on the line before a concealed line leaves the row hidden', () => {
+		testViewModel(
+			[
+				'a',
+				'<!-- x -->',
+				'b'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [{
+					range: new Range(2, 1, 2, 11),
+					options: { description: 'test', concealedText: { line: true } }
+				}]);
+
+				model.applyEdits([{ range: new Range(1, 2, 1, 2), text: 'X' }]);
+				assert.strictEqual(viewModel.getLineCount(), 2, 'no line break was taken');
+			}
+		);
+	});
+
 	test('editor.conceal.enabled false keeps every row', () => {
 		testViewModel(
 			[

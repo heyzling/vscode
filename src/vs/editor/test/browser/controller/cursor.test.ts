@@ -7149,6 +7149,150 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('Backspace at the start of the line below a concealed line joins it and shows the row, the caret at the join', () => {
+		withTestCodeEditor(['above', '<!-- x -->', 'below'], {}, (editor, viewModel) => {
+			editor.getModel()!.deltaDecorations([], [{
+				range: new Range(2, 1, 2, 1),
+				options: { description: 'test-conceal', concealedText: { line: true } }
+			}]);
+			editor.setSelection(new Selection(3, 1, 3, 1));
+			assert.strictEqual(viewModel.getLineCount(), 2);
+
+			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(2), '<!-- x -->below');
+			assert.strictEqual(viewModel.getLineCount(), 2, 'two model lines, none hidden: the joined line is shown');
+			assert.deepStrictEqual(viewModel.getLineContent(2), '<!-- x -->below', 'the hidden text is on screen, joined with what was under it');
+			assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(2, 11), 'the caret stays at the join');
+		});
+	});
+
+	suite('a run of concealed lines at a seam', () => {
+
+		function withRun(policy: ConcealedTextDeletionPolicy, callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void, lines: string[] = ['above', '<!-- one -->', '<!-- two -->', 'below']): void {
+			withTestCodeEditor(lines, {}, (editor, viewModel) => {
+				editor.getModel()!.deltaDecorations([], [
+					{ range: new Range(2, 1, 2, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: policy } } },
+					{ range: new Range(3, 1, 3, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: policy } } },
+				]);
+				assert.strictEqual(viewModel.getLineCount(), 2, 'two rows: the run is hidden');
+				callback(editor, viewModel);
+			});
+		}
+
+		test('passthrough joins as written, so the concealed line is shown', () => {
+			withRun(ConcealedTextDeletionPolicy.Passthrough, (editor, viewModel) => {
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['above', '<!-- one -->', '<!-- two -->below']);
+				assert.strictEqual(viewModel.getLineCount(), 2, 'the joined line is shown, the untouched one stays hidden');
+			});
+		});
+
+		test('protect does nothing at all', () => {
+			withRun(ConcealedTextDeletionPolicy.Protect, (editor, viewModel) => {
+				const before = editor.getModel()!.getVersionId();
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['above', '<!-- one -->', '<!-- two -->', 'below']);
+				assert.strictEqual(editor.getModel()!.getVersionId(), before, 'nothing was edited');
+				assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(4, 1), 'the caret stays');
+			});
+		});
+
+		test('protect does nothing on Delete at the end of the line above either', () => {
+			withRun(ConcealedTextDeletionPolicy.Protect, (editor) => {
+				const before = editor.getModel()!.getVersionId();
+				editor.setSelection(new Selection(1, 6, 1, 6));
+				editor.runCommand(CoreEditingCommands.DeleteRight, null);
+
+				assert.strictEqual(editor.getModel()!.getVersionId(), before, 'nothing was edited');
+			});
+		});
+
+		test('atomic takes the whole run with the join, in one undo step', () => {
+			withRun(ConcealedTextDeletionPolicy.Atomic, (editor, viewModel) => {
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['abovebelow']);
+				assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(1, 6), 'the caret is at the join');
+
+				editor.runCommand(CoreEditingCommands.Undo, null);
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['above', '<!-- one -->', '<!-- two -->', 'below'], 'one undo brings the run back');
+			});
+		});
+
+		test('carryBefore joins the visible lines and leaves the run after them', () => {
+			withRun(ConcealedTextDeletionPolicy.CarryBefore, (editor, viewModel) => {
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['abovebelow', '<!-- one -->', '<!-- two -->']);
+				assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(1, 6), 'the caret is at the join');
+			});
+		});
+
+		test('carryAfter joins the visible lines and leaves the run above them', () => {
+			withRun(ConcealedTextDeletionPolicy.CarryAfter, (editor, viewModel) => {
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['<!-- one -->', '<!-- two -->', 'abovebelow']);
+				assert.deepStrictEqual(viewModel.getSelection().getPosition(), new Position(3, 6), 'the caret is at the join');
+			});
+		});
+
+		test('Delete at the end of the line above carries the same way', () => {
+			withRun(ConcealedTextDeletionPolicy.CarryBefore, (editor) => {
+				editor.setSelection(new Selection(1, 6, 1, 6));
+				editor.runCommand(CoreEditingCommands.DeleteRight, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['abovebelow', '<!-- one -->', '<!-- two -->']);
+			});
+		});
+
+		test('a run with no visible line above it refuses the join', () => {
+			withTestCodeEditor(['<!-- one -->', 'below'], {}, (editor, viewModel) => {
+				editor.getModel()!.deltaDecorations([], [
+					{ range: new Range(1, 1, 1, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: ConcealedTextDeletionPolicy.CarryBefore } } },
+				]);
+				editor.setSelection(new Selection(2, 1, 2, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['<!-- one -->', 'below'], 'there is nothing above to join to');
+			});
+		});
+
+		test('two carries in opposite directions fall back to passthrough', () => {
+			withTestCodeEditor(['above', '<!-- one -->', '<!-- two -->', 'below'], {}, (editor) => {
+				editor.getModel()!.deltaDecorations([], [
+					{ range: new Range(2, 1, 2, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: ConcealedTextDeletionPolicy.CarryBefore } } },
+					{ range: new Range(3, 1, 3, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: ConcealedTextDeletionPolicy.CarryAfter } } },
+				]);
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.deepStrictEqual(editor.getModel()!.getLinesContent(), ['above', '<!-- one -->', '<!-- two -->below'], 'the run cannot both stay above and below');
+			});
+		});
+
+		test('protect anywhere in the run wins over the rest', () => {
+			withTestCodeEditor(['above', '<!-- one -->', '<!-- two -->', 'below'], {}, (editor) => {
+				const before = editor.getModel()!.getVersionId();
+				editor.getModel()!.deltaDecorations([], [
+					{ range: new Range(2, 1, 2, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: ConcealedTextDeletionPolicy.Atomic } } },
+					{ range: new Range(3, 1, 3, 1), options: { description: 'test-conceal', concealedText: { line: true, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+				]);
+				editor.setSelection(new Selection(4, 1, 4, 1));
+				editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+
+				assert.strictEqual(editor.getModel()!.getVersionId(), before, 'nothing was edited');
+			});
+		});
+	});
+
 	test('a caret is put outside a range concealed around it', () => {
 		withTestCodeEditor(ID_LINE, {}, (editor, viewModel) => {
 			editor.setSelection(new Selection(1, 5, 1, 5));

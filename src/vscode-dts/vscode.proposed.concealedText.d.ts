@@ -55,8 +55,25 @@ declare module 'vscode' {
 		 * - `passthrough`: the keys act on the hidden characters as if they were visible. Only
 		 *   meaningful with a replacement; with nothing drawn it acts as `atomic`.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
+		 *
+		 * With {@link ConcealRenderOptions.line}, the same values read as a rule for the seam
+		 * where a run of concealed lines meets a visible one, and two more are available:
+		 *
+		 * - `passthrough` (the default with `line`, rather than `atomic`, which would delete rows
+		 *   nobody can see): the lines are joined as written, which changes a concealed line, so it
+		 *   stops being concealed.
+		 * - `atomic`: the run goes with the join, as one undo step.
+		 * - `protect`: the key does nothing.
+		 * - `carryBefore`: the visible lines are joined and the run stays right after the text
+		 *   above it, for a run that belongs to the line before it.
+		 * - `carryAfter`: as `carryBefore`, but the run stays above the joined line, for a run
+		 *   that guards the line after it.
+		 *
+		 * A run is every concealed line next to the seam, whatever decorations hid them. When
+		 * they disagree, the least destructive rule wins, and two carries in opposite directions
+		 * fall back to `passthrough`.
 		 */
-		deletionPolicy?: 'atomic' | 'passthrough' | 'protect';
+		deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'carryBefore' | 'carryAfter';
 
 		/**
 		 * Whether an edit inside a concealed range stops it being concealed until the

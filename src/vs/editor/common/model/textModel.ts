@@ -1516,7 +1516,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			// and we want to read the final decorations
 			for (let i = 0, len = contentChanges.length; i < len; i++) {
 				const change = contentChanges[i];
-				this._markConcealedTextRevealedByEdit(change.rangeOffset, change.rangeOffset + change.rangeLength);
+				this._markConcealedTextRevealedByEdit(change);
 				this._decorationsTree.acceptReplace(change.rangeOffset, change.rangeLength, change.text.length, change.forceMoveMarkers);
 			}
 
@@ -1889,27 +1889,58 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		return ranges;
 	}
 
+	public getConcealedLineOptions(lineNumber: number, ownerId: number = 0): model.ConcealedTextOptions[] {
+		const startOffset = this._buffer.getOffsetAt(lineNumber, 1);
+		const endOffset = startOffset + this._buffer.getLineLength(lineNumber);
+		const decorations = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
+		const result: model.ConcealedTextOptions[] = [];
+		for (const decoration of decorations) {
+			const concealedText = decoration.options.concealedText;
+			if (!concealedText || !concealedText.line || decoration.range.startLineNumber !== lineNumber) {
+				continue;
+			}
+			if (this._concealRevealedDecorationIds.has(decoration.id)) {
+				continue;
+			}
+			result.push(concealedText);
+		}
+		return result;
+	}
+
 	private readonly _concealRevealedDecorationIds = new Set<string>();
 
 	/**
 	 * Records the concealed ranges an edit changed inside, so they stop being concealed until
-	 * their decoration is applied again (`revealOnEdit`).
+	 * their decoration is applied again (`revealOnEdit`). A deletion spanning lines joins them,
+	 * and a concealed line among them is revealed the same way.
 	 */
-	private _markConcealedTextRevealedByEdit(startOffset: number, endOffset: number): void {
-		const candidates = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, 0);
+	private _markConcealedTextRevealedByEdit(change: model.IInternalModelContentChange): void {
+		// The buffer already holds the new text; the decorations still sit at the old offsets.
+		const startOffset = change.rangeOffset;
+		const endOffset = change.rangeOffset + change.rangeLength;
+		const joinsLines = change.range.startLineNumber < change.range.endLineNumber;
+		let searchStart = startOffset;
+		let searchEnd = endOffset;
+		if (joinsLines) {
+			// The joined lines whole: a line decoration's anchor can sit anywhere on its line.
+			searchStart -= change.range.startColumn - 1;
+			const tail = this._buffer.getPositionAt(change.rangeOffset + change.text.length);
+			searchEnd += this._buffer.getLineLength(tail.lineNumber) - (tail.column - 1);
+		}
+		const candidates = this._decorationsTree.getInjectedTextInInterval(this, searchStart, searchEnd, 0) as IntervalNode[];
 		for (const decoration of candidates) {
 			const concealedText = decoration.options.concealedText;
 			if (!concealedText || concealedText.revealOnEdit === false) {
 				continue;
 			}
-			const range = decoration.range;
-			const decorationStart = this._buffer.getOffsetAt(range.startLineNumber, range.startColumn);
-			const decorationEnd = this._buffer.getOffsetAt(range.endLineNumber, range.endColumn);
+			const decorationStart = decoration.cachedAbsoluteStart;
+			const decorationEnd = decoration.cachedAbsoluteEnd;
+			const joined = joinsLines && concealedText.line === true && decorationStart >= searchStart && decorationStart <= searchEnd;
 			// An insertion at a boundary is beside the hidden text, not inside it.
 			const inside = startOffset === endOffset
 				? (startOffset > decorationStart && startOffset < decorationEnd)
 				: (startOffset < decorationEnd && endOffset > decorationStart);
-			if (inside) {
+			if (inside || joined) {
 				this._concealRevealedDecorationIds.add(decoration.id);
 			}
 		}
@@ -2569,9 +2600,10 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
 		this.cursorStop = options.cursorStop ?? model.ConcealedTextCursorStop.Auto;
 		this.preserveWidth = options.preserveWidth ?? false;
-		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
 		this.revealOnEdit = options.revealOnEdit ?? true;
 		this.line = options.line ?? false;
+		// A concealed line defaults to Passthrough: Atomic there would delete rows nobody can see.
+		this.deletionPolicy = options.deletionPolicy ?? (this.line ? model.ConcealedTextDeletionPolicy.Passthrough : model.ConcealedTextDeletionPolicy.Atomic);
 	}
 }
 

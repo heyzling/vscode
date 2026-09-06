@@ -551,13 +551,17 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 			const cursorStop = providerArgs.options.conceal.cursorStop === 'before' ? ConcealedTextCursorStop.Before
 				: providerArgs.options.conceal.cursorStop === 'after' ? ConcealedTextCursorStop.After
 					: ConcealedTextCursorStop.Auto;
+			const line = providerArgs.options.conceal.line === true;
+			// A concealed line defaults to Passthrough: Atomic there would delete rows nobody can see.
 			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'passthrough' ? ConcealedTextDeletionPolicy.Passthrough
 				: providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
-					: ConcealedTextDeletionPolicy.Atomic;
+					: providerArgs.options.conceal.deletionPolicy === 'carryBefore' ? ConcealedTextDeletionPolicy.CarryBefore
+						: providerArgs.options.conceal.deletionPolicy === 'carryAfter' ? ConcealedTextDeletionPolicy.CarryAfter
+							: providerArgs.options.conceal.deletionPolicy === 'atomic' ? ConcealedTextDeletionPolicy.Atomic
+								: line ? ConcealedTextDeletionPolicy.Passthrough : ConcealedTextDeletionPolicy.Atomic;
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
-			const line = providerArgs.options.conceal.line === true;
 			if (replacement && replacement.contentText) {
 				const replacementInlineData = createInlineCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName);
 				this.concealedText = {

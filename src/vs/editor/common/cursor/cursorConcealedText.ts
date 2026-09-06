@@ -5,7 +5,9 @@
 
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, PositionAffinity } from '../model.js';
+import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, PositionAffinity } from '../model.js';
+import { Selection } from '../core/selection.js';
+import { ICommand, IEditOperationBuilder } from '../editorCommon.js';
 import { LineConcealedText } from '../textModelEvents.js';
 
 /**
@@ -267,4 +269,161 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 	}
 
 	return column === position.column ? position : new Position(position.lineNumber, column);
+}
+
+/**
+ * A model that can be asked about the lines it conceals whole.
+ */
+export interface IConcealedLineSeamModel extends IConcealedLinesAwareModel {
+	getConcealedLineOptions(lineNumber: number): ConcealedTextOptions[];
+	getLineContent(lineNumber: number): string;
+}
+
+function isConcealedLineSeamModel(model: object): model is IConcealedLineSeamModel {
+	return typeof (model as IConcealedLineSeamModel).getConcealedLineOptions === 'function'
+		&& isConcealedLinesAwareModel(model);
+}
+
+/**
+ * A stretch of neighbouring concealed lines, and the one policy that governs it.
+ */
+interface IConcealedLineRun {
+	readonly firstLineNumber: number;
+	readonly lastLineNumber: number;
+	readonly policy: ConcealedTextDeletionPolicy;
+}
+
+/**
+ * The policy of a run of lines: the least destructive of them wins, and two carries in opposite
+ * directions cancel out.
+ */
+function runPolicy(model: IConcealedLineSeamModel, firstLineNumber: number, lastLineNumber: number): ConcealedTextDeletionPolicy {
+	let protect = false;
+	let passthrough = false;
+	let carryBefore = false;
+	let carryAfter = false;
+	for (let lineNumber = firstLineNumber; lineNumber <= lastLineNumber; lineNumber++) {
+		for (const options of model.getConcealedLineOptions(lineNumber)) {
+			// Not the inline default: deleting rows nobody can see is no way to answer one keypress.
+			switch (options.deletionPolicy ?? ConcealedTextDeletionPolicy.Passthrough) {
+				case ConcealedTextDeletionPolicy.Protect: protect = true; break;
+				case ConcealedTextDeletionPolicy.CarryBefore: carryBefore = true; break;
+				case ConcealedTextDeletionPolicy.CarryAfter: carryAfter = true; break;
+				case ConcealedTextDeletionPolicy.Passthrough: passthrough = true; break;
+			}
+		}
+	}
+	if (protect) {
+		return ConcealedTextDeletionPolicy.Protect;
+	}
+	if (carryBefore !== carryAfter) {
+		return carryBefore ? ConcealedTextDeletionPolicy.CarryBefore : ConcealedTextDeletionPolicy.CarryAfter;
+	}
+	// Both directions, or neither.
+	if (carryBefore || passthrough) {
+		return ConcealedTextDeletionPolicy.Passthrough;
+	}
+	return ConcealedTextDeletionPolicy.Atomic;
+}
+
+/**
+ * The run of concealed lines touching `lineNumber` on the given side, or `null` when the
+ * neighbouring line is drawn.
+ */
+function concealedLineRun(model: IConcealedLineSeamModel, lineNumber: number, direction: -1 | 1): IConcealedLineRun | null {
+	const hidden = new Set<number>();
+	for (const range of model.getConcealedLineRanges()) {
+		hidden.add(range.startLineNumber);
+	}
+	let edge = lineNumber + direction;
+	if (!hidden.has(edge)) {
+		return null;
+	}
+	while (hidden.has(edge + direction)) {
+		edge += direction;
+	}
+	const [firstLineNumber, lastLineNumber] = direction === -1 ? [edge, lineNumber - 1] : [lineNumber + 1, edge];
+	return { firstLineNumber, lastLineNumber, policy: runPolicy(model, firstLineNumber, lastLineNumber) };
+}
+
+/**
+ * What a caret delete does where a visible line meets a run of concealed lines. Returns
+ * `undefined` when the position is not at such a seam and the delete is an ordinary one,
+ * `null` when the key does nothing, and otherwise the command to run in its place.
+ *
+ * `direction` is the key: `left` is Backspace at the start of a line, `right` is Delete at the
+ * end of one.
+ */
+export function concealedLineSeamCommand(position: Position, model: object, enabled: boolean, direction: 'left' | 'right'): ICommand | null | undefined {
+	if (!enabled || !isConcealedLineSeamModel(model)) {
+		return undefined;
+	}
+	const atStart = direction === 'left' && position.column === 1;
+	const atEnd = direction === 'right' && position.column === model.getLineMaxColumn(position.lineNumber);
+	if (!atStart && !atEnd) {
+		return undefined;
+	}
+	const run = concealedLineRun(model, position.lineNumber, atStart ? -1 : 1);
+	if (!run) {
+		return undefined;
+	}
+
+	// The two visible lines the seam sits between; the run is what hides between them.
+	const aboveLineNumber = atStart ? run.firstLineNumber - 1 : position.lineNumber;
+	const belowLineNumber = atStart ? position.lineNumber : run.lastLineNumber + 1;
+	if (aboveLineNumber < 1 || belowLineNumber > model.getLineCount()) {
+		// Nothing visible to join to.
+		return null;
+	}
+
+	switch (run.policy) {
+		case ConcealedTextDeletionPolicy.Protect:
+			return null;
+		case ConcealedTextDeletionPolicy.Atomic: {
+			// The run goes with the join, in one step.
+			const range = new Range(aboveLineNumber, model.getLineMaxColumn(aboveLineNumber), belowLineNumber, 1);
+			return new ReplaceCommandThatEndsAt(range, '', new Position(aboveLineNumber, model.getLineMaxColumn(aboveLineNumber)));
+		}
+		case ConcealedTextDeletionPolicy.CarryBefore:
+		case ConcealedTextDeletionPolicy.CarryAfter: {
+			const above = model.getLineContent(aboveLineNumber);
+			const below = model.getLineContent(belowLineNumber);
+			const runLines: string[] = [];
+			for (let lineNumber = run.firstLineNumber; lineNumber <= run.lastLineNumber; lineNumber++) {
+				runLines.push(model.getLineContent(lineNumber));
+			}
+			const range = new Range(aboveLineNumber, 1, belowLineNumber, model.getLineMaxColumn(belowLineNumber));
+			if (run.policy === ConcealedTextDeletionPolicy.CarryBefore) {
+				// The joined line, then the run that belongs to the text above it.
+				const text = [above + below, ...runLines].join('\n');
+				return new ReplaceCommandThatEndsAt(range, text, new Position(aboveLineNumber, above.length + 1));
+			}
+			// The run that guards the text below it, then the joined line.
+			const text = [...runLines, above + below].join('\n');
+			const joinedLineNumber = aboveLineNumber + runLines.length;
+			return new ReplaceCommandThatEndsAt(range, text, new Position(joinedLineNumber, above.length + 1));
+		}
+		default:
+			return undefined;
+	}
+}
+
+/**
+ * A replace whose caret lands where the caller says, not at the end of what it wrote.
+ */
+class ReplaceCommandThatEndsAt implements ICommand {
+
+	constructor(
+		private readonly _range: Range,
+		private readonly _text: string,
+		private readonly _caret: Position
+	) { }
+
+	public getEditOperations(model: unknown, builder: IEditOperationBuilder): void {
+		builder.addTrackedEditOperation(this._range, this._text);
+	}
+
+	public computeCursorState(model: unknown, helper: unknown): Selection {
+		return Selection.fromPositions(this._caret);
+	}
 }

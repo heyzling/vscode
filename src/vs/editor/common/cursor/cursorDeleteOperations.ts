@@ -14,7 +14,7 @@ import { Selection } from '../core/selection.js';
 import { ICommand } from '../editorCommon.js';
 import { StandardAutoClosingPairConditional } from '../languages/languageConfiguration.js';
 import { Position } from '../core/position.js';
-import { expandOverConcealedText, positionPastProtectedConcealedText } from './cursorConcealedText.js';
+import { concealedLineSeamCommand, expandOverConcealedText, positionPastProtectedConcealedText } from './cursorConcealedText.js';
 
 export class DeleteOperations {
 
@@ -25,6 +25,12 @@ export class DeleteOperations {
 			let selection = selections[i];
 
 			if (selection.isEmpty()) {
+				const seam = concealedLineSeamCommand(selection.getPosition(), model, config.concealedText, 'right');
+				if (seam !== undefined) {
+					commands[i] = seam;
+					shouldPushStackElementBefore = true;
+					continue;
+				}
 				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, true, config.concealedText);
 				selection = Selection.fromPositions(hopped, hopped);
 			}
@@ -179,6 +185,12 @@ export class DeleteOperations {
 			let selection = selections[i];
 
 			if (selection.isEmpty()) {
+				const seam = concealedLineSeamCommand(selection.getPosition(), model, config.concealedText, 'left');
+				if (seam !== undefined) {
+					commands[i] = seam;
+					shouldPushStackElementBefore = true;
+					continue;
+				}
 				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, false, config.concealedText);
 				selection = Selection.fromPositions(hopped, hopped);
 			}

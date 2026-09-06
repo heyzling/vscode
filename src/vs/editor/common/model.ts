@@ -435,9 +435,20 @@ export enum ConcealedTextDeletionPolicy {
 	 */
 	Passthrough,
 	/**
-	 * Deletion never reaches the concealed text: the keys step over the range.
+	 * Deletion never reaches the concealed text: the keys step over the range. At a concealed
+	 * line, the key does nothing at all.
 	 */
 	Protect,
+	/**
+	 * Only for a concealed line. A deletion that would join the lines around the run joins the
+	 * visible lines instead, and the run stays right after the text above it.
+	 */
+	CarryBefore,
+	/**
+	 * Only for a concealed line. As {@link CarryBefore}, but the run stays right before the text
+	 * below it, so it ends up above the joined line.
+	 */
+	CarryAfter,
 }
 
 /**
@@ -967,6 +978,13 @@ export interface ITextModel {
 	 * @internal
 	 */
 	getConcealedLineRanges(ownerId?: number): Range[];
+
+	/**
+	 * The conceal options of every decoration that hides the whole of `lineNumber`. Empty when
+	 * the line is drawn.
+	 * @internal
+	 */
+	getConcealedLineOptions(lineNumber: number, ownerId?: number): ConcealedTextOptions[];
 
 	/**
 	 * Get the text length for a certain line.
