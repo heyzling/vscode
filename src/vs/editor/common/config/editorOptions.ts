@@ -3218,11 +3218,6 @@ export interface IEditorConcealOptions {
 	 */
 	enabled?: boolean;
 	/**
-	 * The longest replacement drawn in place of concealed text, measured per replacement in
-	 * grapheme clusters; a cut ends in `…`. `0` never truncates. Defaults to 43.
-	 */
-	maximumReplacementLength?: number;
-	/**
 	 * Whether concealment renders in a diff editor's panes. Defaults to false.
 	 */
 	inDiffEditor?: boolean;
@@ -3236,7 +3231,7 @@ export type EditorConcealOptions = Readonly<Required<IEditorConcealOptions>>;
 class EditorConceal extends BaseEditorOption<EditorOption.conceal, IEditorConcealOptions, EditorConcealOptions> {
 
 	constructor() {
-		const defaults: EditorConcealOptions = { enabled: true, maximumReplacementLength: 43, inDiffEditor: false };
+		const defaults: EditorConcealOptions = { enabled: true, inDiffEditor: false };
 		super(
 			EditorOption.conceal, 'conceal', defaults,
 			{
@@ -3244,12 +3239,6 @@ class EditorConceal extends BaseEditorOption<EditorOption.conceal, IEditorConcea
 					type: 'boolean',
 					default: defaults.enabled,
 					description: nls.localize('conceal.enabled', "Controls whether extensions may conceal text, i.e. hide it in the editor while leaving it in the file.")
-				},
-				'editor.conceal.maximumReplacementLength': {
-					type: 'number',
-					default: defaults.maximumReplacementLength,
-					minimum: 0,
-					markdownDescription: nls.localize('conceal.maximumReplacementLength', "The longest replacement drawn in place of concealed text, per replacement; a cut ends in `…`. Set to `0` to never truncate.")
 				},
 				'editor.conceal.inDiffEditor': {
 					type: 'boolean',
@@ -3267,7 +3256,6 @@ class EditorConceal extends BaseEditorOption<EditorOption.conceal, IEditorConcea
 		const input = _input as IEditorConcealOptions;
 		return {
 			enabled: boolean(input.enabled, this.defaultValue.enabled),
-			maximumReplacementLength: EditorIntOption.clampedInt(input.maximumReplacementLength, this.defaultValue.maximumReplacementLength, 0, Number.MAX_SAFE_INTEGER),
 			inDiffEditor: boolean(input.inDiffEditor, this.defaultValue.inDiffEditor),
 		};
 	}

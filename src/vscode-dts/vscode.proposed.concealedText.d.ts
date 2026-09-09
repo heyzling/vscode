@@ -29,15 +29,14 @@ declare module 'vscode' {
 		 * document position and is never selected or copied. Defaults to rendering nothing.
 		 *
 		 * It is drawn in the color and font style of the text it stands for, unless the options
-		 * set their own. Line feeds are dropped from `contentText`. The drawn length is capped by
-		 * the `editor.conceal.maximumReplacementLength` setting, a cut marked with `…`.
+		 * set their own. Line feeds are dropped from `contentText`.
 		 */
 		replacement?: ThemableDecorationAttachmentRenderOptions;
 
 		/**
 		 * Draw the replacement at the rendered width of the text it stands for: padded when
-		 * narrower, clipped with `…` when wider. Width is measured in rendered cells; the
-		 * `editor.conceal.maximumReplacementLength` cap does not apply. Defaults to `false`.
+		 * narrower, clipped with `…` when wider. Width is measured in rendered cells.
+		 * Defaults to `false`.
 		 */
 		preserveWidth?: boolean;
 

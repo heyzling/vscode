@@ -4490,11 +4490,6 @@ declare namespace monaco.editor {
 		 */
 		enabled?: boolean;
 		/**
-		 * The longest replacement drawn in place of concealed text, measured per replacement in
-		 * grapheme clusters; a cut ends in `…`. `0` never truncates. Defaults to 43.
-		 */
-		maximumReplacementLength?: number;
-		/**
 		 * Whether concealment renders in a diff editor's panes. Defaults to false.
 		 */
 		inDiffEditor?: boolean;

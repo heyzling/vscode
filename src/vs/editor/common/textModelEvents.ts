@@ -6,7 +6,6 @@
 import { IPosition } from './core/position.js';
 import { IRange, Range } from './core/range.js';
 import { Selection } from './core/selection.js';
-import { Lazy } from '../../base/common/lazy.js';
 import { ConcealedTextOptions, IModelDecoration, InjectedTextOptions } from './model.js';
 import { IModelContentChange } from './model/mirrorTextModel.js';
 import { AnnotationsUpdate } from './model/tokens/annotations.js';
@@ -362,35 +361,7 @@ export class LineConcealedText {
 	private withStartColumn(startColumn: number): LineConcealedText {
 		return new LineConcealedText(this.ownerId, this.lineNumber, startColumn, this.endColumn, this.options);
 	}
-
-	/**
-	 * A copy with the replacement content cut to `maxGraphemes` grapheme clusters, the cut
-	 * marked with `…`. Returns `this` when nothing is cut.
-	 */
-	public withReplacementCappedAt(maxGraphemes: number): LineConcealedText {
-		const content = this.options.replacement?.content;
-		if (!content || maxGraphemes <= 0) {
-			return this;
-		}
-		let end = 0;
-		let count = 0;
-		for (const segment of graphemeSegmenter.value.segment(content)) {
-			if (count === maxGraphemes) {
-				break;
-			}
-			end = segment.index + segment.segment.length;
-			count++;
-		}
-		if (end >= content.length) {
-			return this;
-		}
-		const replacement = { ...this.options.replacement, content: content.substring(0, end) + '…' };
-		return new LineConcealedText(this.ownerId, this.lineNumber, this.startColumn, this.endColumn, { replacement, cursorStop: this.options.cursorStop });
-	}
 }
-
-const graphemeSegmenter = new Lazy(() => new Intl.Segmenter(undefined, { granularity: 'grapheme' }));
-
 
 /**
  * An event describing that a line has changed in a model.

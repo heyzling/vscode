@@ -284,7 +284,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		const equalWrappingColumn = (this.wrappingColumn === wrappingColumn);
 		const equalWrappingIndent = (this.wrappingIndent === wrappingIndent);
 		const equalWordBreak = (this.wordBreak === wordBreak);
-		const equalConceal = (this.conceal.enabled === conceal.enabled && this.conceal.maximumReplacementLength === conceal.maximumReplacementLength);
+		const equalConceal = (this.conceal.enabled === conceal.enabled);
 		if (equalFontInfo && equalWrappingStrategy && equalWrappingColumn && equalWrappingIndent && equalWordBreak && equalConceal) {
 			return false;
 		}
@@ -328,12 +328,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 				if (!this.conceal.enabled) {
 					return null;
 				}
-				const concealedText = this.model.getLineConcealedText(lineNumber, this._editorId);
-				if (this.conceal.maximumReplacementLength <= 0) {
-					return concealedText;
-				}
-				// The cap is a per-editor setting; under `preserveWidth` the width is the document's.
-				return concealedText.map(c => c.options.preserveWidth ? c : c.withReplacementCappedAt(this.conceal.maximumReplacementLength));
+				return this.model.getLineConcealedText(lineNumber, this._editorId);
 			}
 		};
 		return lineBreaksComputerFactory.createLineBreaksComputer(context, this.fontInfo, this.tabSize, this.wrappingColumn, this.wrappingIndent, this.wordBreak, this.wrapOnEscapedLineFeeds);

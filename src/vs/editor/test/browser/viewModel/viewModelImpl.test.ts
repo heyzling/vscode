@@ -449,53 +449,12 @@ suite('ViewModel', () => {
 		}
 	});
 
-	test('a long replacement is cut at editor.conceal.maximumReplacementLength, per replacement', () => {
-		testViewModel(
-			[
-				'abcd efgh'
-			],
-			{ conceal: { maximumReplacementLength: 5 } },
-			(viewModel, model) => {
-				model.deltaDecorations([], [
-					{
-						range: new Range(1, 1, 1, 5),
-						options: { description: 'test', concealedText: { replacement: { content: 'longer than five' } } }
-					},
-					{
-						// The cap is per replacement, not per line.
-						range: new Range(1, 6, 1, 10),
-						options: { description: 'test', concealedText: { replacement: { content: 'short' } } }
-					},
-				]);
-
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'longe… short');
-			}
-		);
-	});
-
-	test('the replacement cap counts graphemes, so a cut never splits a joined emoji', () => {
+	test('a replacement is drawn whole, however long', () => {
 		testViewModel(
 			[
 				'abcd'
 			],
-			{ conceal: { maximumReplacementLength: 2 } },
-			(viewModel, model) => {
-				model.deltaDecorations([], [{
-					range: new Range(1, 1, 1, 5),
-					options: { description: 'test', concealedText: { replacement: { content: '👨‍👩‍👧‍👦👨‍👩‍👧‍👦👨‍👩‍👧‍👦' } } }
-				}]);
-
-				assert.deepStrictEqual(viewModel.getLineContent(1), '👨‍👩‍👧‍👦👨‍👩‍👧‍👦…');
-			}
-		);
-	});
-
-	test('editor.conceal.maximumReplacementLength 0 never cuts', () => {
-		testViewModel(
-			[
-				'abcd'
-			],
-			{ conceal: { maximumReplacementLength: 0 } },
+			{},
 			(viewModel, model) => {
 				model.deltaDecorations([], [{
 					range: new Range(1, 1, 1, 5),
@@ -529,10 +488,10 @@ suite('ViewModel', () => {
 			[
 				'x t(\'a\') y'
 			],
-			{ conceal: { maximumReplacementLength: 2 } },
+			{},
 			(viewModel, model) => {
 				model.deltaDecorations([], [{
-					// Six hidden cells, eleven drawn; the cap setting does not apply.
+					// Six hidden cells, eleven drawn.
 					range: new Range(1, 3, 1, 9),
 					options: { description: 'test', concealedText: { replacement: { content: 'Place order' }, preserveWidth: true } }
 				}]);
