@@ -397,6 +397,35 @@ suite('ViewModel', () => {
 		);
 	});
 
+	test('a range reaching into concealed text covers the whole replacement', () => {
+		testViewModel(
+			[
+				'is #done by now'
+			],
+			{},
+			(viewModel, model) => {
+				model.deltaDecorations([], [
+					{
+						// `#done`, columns 4 through 9.
+						range: new Range(1, 4, 1, 9),
+						options: {
+							description: 'test',
+							concealedText: {
+								replacement: { content: '°' }
+							}
+						}
+					},
+				]);
+
+				const modelToView = (range: Range) => viewModel.coordinatesConverter.convertModelRangeToViewRange(range);
+				// A range with nothing of it drawn (a find match on `done`) still has the replacement to show.
+				assert.deepStrictEqual(modelToView(new Range(1, 5, 1, 9)), new Range(1, 4, 1, 5));
+				assert.deepStrictEqual(modelToView(new Range(1, 1, 1, 6)), new Range(1, 1, 1, 5));
+				assert.deepStrictEqual(modelToView(new Range(1, 6, 1, 12)), new Range(1, 4, 1, 8));
+			}
+		);
+	});
+
 	test('a concealed range at the line start does not cost the line its number', () => {
 		// What the margin checks: the line's first model column is drawn on this row.
 		for (const cursorStop of [ConcealedTextCursorStop.After, ConcealedTextCursorStop.Before]) {

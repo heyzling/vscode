@@ -911,10 +911,31 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 			const start = this.convertModelPositionToViewPosition(modelRange.startLineNumber, modelRange.startColumn, affinity);
 			return Range.fromPositions(start);
 		} else {
-			const start = this.convertModelPositionToViewPosition(modelRange.startLineNumber, modelRange.startColumn, PositionAffinity.Right);
-			const end = this.convertModelPositionToViewPosition(modelRange.endLineNumber, modelRange.endColumn, PositionAffinity.Left);
+			// A range reaching into concealed text covers the whole replacement, never a place inside it.
+			const startColumn = this._concealedTextBoundary(modelRange.startLineNumber, modelRange.startColumn, false);
+			const endColumn = this._concealedTextBoundary(modelRange.endLineNumber, modelRange.endColumn, true);
+			const start = this.convertModelPositionToViewPosition(modelRange.startLineNumber, startColumn, PositionAffinity.Right);
+			const end = this.convertModelPositionToViewPosition(modelRange.endLineNumber, endColumn, PositionAffinity.Left);
 			return new Range(start.lineNumber, start.column, end.lineNumber, end.column);
 		}
+	}
+
+	/**
+	 * The end, in the given direction, of the concealed range a column falls strictly inside.
+	 * Returns the column unchanged when it is inside none.
+	 */
+	private _concealedTextBoundary(modelLineNumber: number, modelColumn: number, forward: boolean): number {
+		const concealedRanges = this.modelLineProjections[modelLineNumber - 1]?.getProjectionData()?.getConcealedRanges();
+		if (!concealedRanges) {
+			return modelColumn;
+		}
+		const offset = modelColumn - 1;
+		for (const concealed of concealedRanges) {
+			if (offset > concealed.start && offset < concealed.endExclusive) {
+				return (forward ? concealed.endExclusive : concealed.start) + 1;
+			}
+		}
+		return modelColumn;
 	}
 
 	public getViewLineNumberOfModelPosition(modelLineNumber: number, modelColumn: number): number {
