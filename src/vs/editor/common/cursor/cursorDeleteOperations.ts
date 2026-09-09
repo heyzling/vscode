@@ -14,7 +14,7 @@ import { Selection } from '../core/selection.js';
 import { ICommand } from '../editorCommon.js';
 import { StandardAutoClosingPairConditional } from '../languages/languageConfiguration.js';
 import { Position } from '../core/position.js';
-import { expandOverConcealedText, positionPastProtectedConcealedText } from './cursorConcealedText.js';
+import { expandOverConcealedText, positionPastProtectedConcealedText, revealConcealedTextInsteadOfDeleting } from './cursorConcealedText.js';
 
 export class DeleteOperations {
 
@@ -28,7 +28,12 @@ export class DeleteOperations {
 				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, true, config.concealedText);
 				selection = Selection.fromPositions(hopped, hopped);
 			}
-			const deleteSelection = expandOverConcealedText(this.getDeleteRightRange(selection, model, config), model, config.concealedText, 'right');
+			const rightRange = this.getDeleteRightRange(selection, model, config);
+			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(rightRange, model, config.concealedText)) {
+				commands[i] = null;
+				continue;
+			}
+			const deleteSelection = expandOverConcealedText(rightRange, model, config.concealedText, 'right');
 
 			if (deleteSelection.isEmpty()) {
 				// Probably at end of file => ignore
@@ -182,7 +187,12 @@ export class DeleteOperations {
 				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, false, config.concealedText);
 				selection = Selection.fromPositions(hopped, hopped);
 			}
-			const deleteRange = expandOverConcealedText(DeleteOperations.getDeleteLeftRange(selection, model, config), model, config.concealedText, 'left');
+			const leftRange = DeleteOperations.getDeleteLeftRange(selection, model, config);
+			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(leftRange, model, config.concealedText)) {
+				commands[i] = null;
+				continue;
+			}
+			const deleteRange = expandOverConcealedText(leftRange, model, config.concealedText, 'left');
 
 			// Ignore empty delete ranges, as they have no effect
 			// They happen if the cursor is at the beginning of the file.

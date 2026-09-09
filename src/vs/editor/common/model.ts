@@ -432,6 +432,10 @@ export enum ConcealedTextDeletionPolicy {
 	 * Deletion never reaches the concealed text: the keys step over the range.
 	 */
 	Protect,
+	/**
+	 * The key reveals the range and deletes nothing. A revealed range is ordinary text.
+	 */
+	Reveal,
 }
 
 /**
@@ -954,6 +958,19 @@ export interface ITextModel {
 	 * @internal
 	 */
 	getLineConcealedText(lineNumber: number, ownerId?: number): LineConcealedText[];
+
+	/**
+	 * Reveals the concealed text within the columns, until no caret is inside it or at either end.
+	 * @internal
+	 */
+	revealConcealedText(lineNumber: number, startColumn: number, endColumn: number): void;
+
+	/**
+	 * Reports where a cursor owner's carets are. A revealed range stays revealed while a reported
+	 * caret is inside it or at either end; an empty list withdraws the owner.
+	 * @internal
+	 */
+	keepConcealedTextRevealedAt(owner: object, positions: readonly IPosition[]): void;
 
 	/**
 	 * Get the text length for a certain line.

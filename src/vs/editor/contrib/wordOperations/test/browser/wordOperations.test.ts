@@ -635,6 +635,22 @@ suite('WordOperations', () => {
 		});
 	});
 
+	test('deleteWordLeft under reveal shows the hidden text and takes nothing', () => {
+		withTestCodeEditor(['x \\gamma y'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [{
+				range: new Range(1, 3, 1, 9),
+				options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' }, deletionPolicy: ConcealedTextDeletionPolicy.Reveal } }
+			}]);
+			editor.setPosition(new Position(1, 9));
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'x \\gamma y', 'nothing deleted');
+			assert.strictEqual(model.getLineConcealedText(1).length, 0, 'the range is revealed');
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'x \\ y', 'the next press takes the word it showed');
+		});
+	});
+
 	test('deleteWordLeft for cursor at beginning of document', () => {
 		withTestCodeEditor([
 			'    \tMy First Line\t ',

@@ -13,10 +13,36 @@ import { LineConcealedText } from '../textModelEvents.js';
  */
 export interface IConcealAwareModel {
 	getLineConcealedText(lineNumber: number): LineConcealedText[];
+	revealConcealedText(lineNumber: number, startColumn: number, endColumn: number): void;
 }
 
 export function isConcealAwareModel(model: object): model is IConcealAwareModel {
 	return typeof (model as IConcealAwareModel).getLineConcealedText === 'function';
+}
+
+/**
+ * Reveals the `reveal` ranges a caret delete reaches into, in place of the delete. Returns whether
+ * any was, in which case the delete is refused.
+ */
+export function revealConcealedTextInsteadOfDeleting(range: Range, model: object, enabled: boolean): boolean {
+	if (!enabled || !isConcealAwareModel(model)) {
+		return false;
+	}
+	let revealed = false;
+	for (let lineNumber = range.startLineNumber; lineNumber <= range.endLineNumber; lineNumber++) {
+		const startColumn = lineNumber === range.startLineNumber ? range.startColumn : 1;
+		const endColumn = lineNumber === range.endLineNumber ? range.endColumn : Number.MAX_SAFE_INTEGER;
+		for (const concealed of model.getLineConcealedText(lineNumber)) {
+			if (concealed.options.deletionPolicy !== ConcealedTextDeletionPolicy.Reveal) {
+				continue;
+			}
+			if (startColumn < concealed.endColumn && endColumn > concealed.startColumn) {
+				model.revealConcealedText(lineNumber, concealed.startColumn, concealed.endColumn);
+				revealed = true;
+			}
+		}
+	}
+	return revealed;
 }
 
 /**

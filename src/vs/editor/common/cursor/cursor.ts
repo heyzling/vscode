@@ -60,6 +60,9 @@ export class CursorsController extends Disposable {
 	public override dispose(): void {
 		this._cursors.dispose();
 		this._autoClosedActions = dispose(this._autoClosedActions);
+		if (!this._model.isDisposed()) {
+			this._model.keepConcealedTextRevealedAt(this, []);
+		}
 		super.dispose();
 	}
 
@@ -421,6 +424,9 @@ export class CursorsController extends Disposable {
 			const oldModelVersionId = oldState ? oldState.modelVersionId : 0;
 			eventsCollector.emitOutgoingEvent(new CursorStateChangedEvent(oldSelections, selections, oldModelVersionId, newState.modelVersionId, source || 'keyboard', reason, reachedMaxCursorCount));
 		}
+
+		// Concealed text revealed by an edit or a delete key hides again once no caret is at it.
+		this._model.keepConcealedTextRevealedAt(this, selections.flatMap(selection => [selection.getStartPosition(), selection.getEndPosition()]));
 
 		return true;
 	}

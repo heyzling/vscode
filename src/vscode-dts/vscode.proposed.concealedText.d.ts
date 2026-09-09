@@ -59,12 +59,16 @@ declare module 'vscode' {
 		 * - `passthrough`: the keys act on the hidden characters as if they were visible. Only
 		 *   meaningful with a replacement; with nothing drawn it acts as `atomic`.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
+		 * - `reveal`: the key reveals the range and deletes nothing. A revealed range is ordinary
+		 *   text, so the next press acts on characters that can be seen.
 		 */
-		deletionPolicy?: 'atomic' | 'passthrough' | 'protect';
+		deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
 
 		/**
-		 * Whether an edit inside a concealed range stops it being concealed until the
-		 * decoration is applied again. Defaults to `true`.
+		 * Whether an edit inside a concealed range stops it being concealed. Defaults to `true`.
+		 *
+		 * A revealed range stays revealed while a caret is inside it or at either end. One revealed
+		 * by an edit also stays revealed until the decoration is applied again.
 		 */
 		revealOnEdit?: boolean;
 	}

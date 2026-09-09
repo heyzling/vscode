@@ -553,7 +553,8 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					: ConcealedTextCursorStop.Auto;
 			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'passthrough' ? ConcealedTextDeletionPolicy.Passthrough
 				: providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
-					: ConcealedTextDeletionPolicy.Atomic;
+					: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
+						: ConcealedTextDeletionPolicy.Atomic;
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;

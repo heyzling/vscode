@@ -47,6 +47,11 @@ suite('Decoration Render Options', () => {
 		const parent = s.resolveDecorationOptions('conceal-parent', false);
 		assert.strictEqual(parent.concealedText?.replacement?.content, 'key', 'ranges without their own replacement keep the type\'s');
 	});
+	test('the reveal deletion policy reaches the model', () => {
+		const s = store.add(new TestCodeEditorService(themeServiceMock));
+		store.add(s.registerDecorationType('test', 'conceal-reveal', { conceal: { deletionPolicy: 'reveal' } }));
+		assert.strictEqual(s.resolveDecorationOptions('conceal-reveal', false).concealedText?.deletionPolicy, ConcealedTextDeletionPolicy.Reveal);
+	});
 
 	test('per-range conceal replacements at scale keep subtype registration bounded', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));

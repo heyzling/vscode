@@ -18,7 +18,7 @@ import { Range } from '../../../common/core/range.js';
 import { Selection } from '../../../common/core/selection.js';
 import { getMapForWordSeparators, WordCharacterClassifier } from '../../../common/core/wordCharacterClassifier.js';
 import { DeleteWordContext, WordNavigationType, WordOperations } from '../../../common/cursor/cursorWordOperations.js';
-import { expandOverConcealedText, positionOutsideConcealedText, positionPastProtectedConcealedText } from '../../../common/cursor/cursorConcealedText.js';
+import { expandOverConcealedText, positionOutsideConcealedText, positionPastProtectedConcealedText, revealConcealedTextInsteadOfDeleting } from '../../../common/cursor/cursorConcealedText.js';
 import { CursorState } from '../../../common/cursorCommon.js';
 import { CursorChangeReason } from '../../../common/cursorEvents.js';
 import { ScrollType } from '../../../common/editorCommon.js';
@@ -356,7 +356,8 @@ export abstract class DeleteWordCommand extends EditorCommand {
 		const viewModel = editor._getViewModel();
 
 		const concealedTextEnabled = editor.getOption(EditorOption.conceal).enabled;
-		const commands = selections.map((sel) => {
+		const commands = selections.map((sel): ReplaceCommand | null => {
+			const caretDelete = sel.isEmpty();
 			if (sel.isEmpty()) {
 				// Step over protected concealed ranges first, as Backspace and Delete do.
 				const hopped = positionPastProtectedConcealedText(sel.getPosition(), model, this._deleteDirection === 'right', concealedTextEnabled);
@@ -373,6 +374,9 @@ export abstract class DeleteWordCommand extends EditorCommand {
 				autoClosingPairs,
 				autoClosedCharacters: viewModel.getCursorAutoClosedCharacters(),
 			}, this._wordNavigationType);
+			if (caretDelete && revealConcealedTextInsteadOfDeleting(deleteRange, model, concealedTextEnabled)) {
+				return null;
+			}
 			return new ReplaceCommand(expandOverConcealedText(deleteRange, model, concealedTextEnabled, this._deleteDirection), '');
 		});
 

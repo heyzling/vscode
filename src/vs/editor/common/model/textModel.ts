@@ -1869,10 +1869,82 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		if (this._concealRevealedDecorationIds.size > 0) {
 			result = result.filter(d => !this._concealRevealedDecorationIds.has(d.id));
 		}
+		if (this._concealRevealedSpans.length > 0) {
+			const spans = this._concealRevealedSpanRanges();
+			result = result.filter(d => !spans.some(span => Range.areIntersecting(span, d.range)));
+		}
 		return LineConcealedText.fromDecorations(result, lineNumber);
 	}
 
 	private readonly _concealRevealedDecorationIds = new Set<string>();
+	// Revealed spans, as tracked ranges: kept while a reported caret is inside one or at its end.
+	private _concealRevealedSpans: string[] = [];
+	private readonly _concealCarets = new Map<object, Position[]>();
+
+	private _concealRevealedSpanRanges(): Range[] {
+		const ranges: Range[] = [];
+		for (const id of this._concealRevealedSpans) {
+			const range = this._getTrackedRange(id);
+			if (range) {
+				ranges.push(range);
+			}
+		}
+		return ranges;
+	}
+
+	public revealConcealedText(lineNumber: number, startColumn: number, endColumn: number): void {
+		const range = this.validateRange(new Range(lineNumber, startColumn, lineNumber, endColumn));
+		this._concealRevealedSpans.push(this._setTrackedRange(null, range, model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges));
+		this._emitConcealedTextChanged([lineNumber]);
+	}
+
+	public keepConcealedTextRevealedAt(owner: object, positions: readonly IPosition[]): void {
+		if (positions.length > 0) {
+			this._concealCarets.set(owner, positions.map(position => this.validatePosition(position)));
+		} else {
+			this._concealCarets.delete(owner);
+		}
+		if (this._concealRevealedDecorationIds.size === 0 && this._concealRevealedSpans.length === 0) {
+			return;
+		}
+		const carets = Array.from(this._concealCarets.values()).flat();
+		const held = (range: Range) => !range.isEmpty() && carets.some(caret => range.containsPosition(caret));
+		const spans = this._concealRevealedSpanRanges();
+		// A range revealed by an edit is kept past its owner applying the decoration again.
+		for (const id of this._concealRevealedDecorationIds) {
+			const range = this.getDecorationRange(id);
+			if (range && held(range) && !spans.some(span => Range.areIntersecting(span, range))) {
+				this._concealRevealedSpans.push(this._setTrackedRange(null, range, model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges));
+				spans.push(range);
+			}
+		}
+		const affectedLines: number[] = [];
+		this._concealRevealedSpans = this._concealRevealedSpans.filter(id => {
+			const range = this._getTrackedRange(id);
+			if (range && held(range)) {
+				return true;
+			}
+			if (range) {
+				for (let lineNumber = range.startLineNumber; lineNumber <= range.endLineNumber; lineNumber++) {
+					affectedLines.push(lineNumber);
+				}
+			}
+			this._setTrackedRange(id, null, model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
+			return false;
+		});
+		if (affectedLines.length > 0) {
+			this._emitConcealedTextChanged(affectedLines);
+		}
+	}
+
+	private _emitConcealedTextChanged(lineNumbers: number[]): void {
+		this._onDidChangeDecorations.beginDeferredEmit();
+		for (const lineNumber of lineNumbers) {
+			this._onDidChangeDecorations.recordLineAffectedByInjectedText(lineNumber);
+		}
+		this._onDidChangeDecorations.checkAffectedAndFire(ModelDecorationOptions.EMPTY);
+		this._onDidChangeDecorations.endDeferredEmit();
+	}
 
 	/**
 	 * Records the concealed ranges an edit changed inside, so they stop being concealed until
