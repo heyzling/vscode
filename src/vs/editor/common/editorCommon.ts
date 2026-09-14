@@ -679,7 +679,6 @@ export interface IConcealDecorationRenderOptions {
 	preserveWidth?: boolean;
 	anchor?: 'before' | 'after' | 'lineStart' | 'lineEnd';
 	deletionPolicy?: 'atomic' | 'protect' | 'reveal';
-	revealOnEdit?: boolean;
 }
 
 /**

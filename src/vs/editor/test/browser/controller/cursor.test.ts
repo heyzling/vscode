@@ -6961,23 +6961,6 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('a range revealed by an edit stays revealed while the caret is at it', () => {
-		withTestCodeEditor('x \\gamma y', {}, (editor, viewModel) => {
-			const model = editor.getModel()!;
-			const decoration = (range: Range) => ({ range, options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' } } } });
-			let ids = model.deltaDecorations([], [decoration(new Range(1, 3, 1, 9))]);
-			moveTo(editor, viewModel, 1, 9);
-			// An owner's own edit under the range, not a key: the caret follows to the new end.
-			model.applyEdits([{ range: new Range(1, 8, 1, 9), text: '' }]);
-			assert.strictEqual(model.getLineContent(1), 'x \\gamm y');
-			assert.deepStrictEqual(editor.getPosition(), new Position(1, 8));
-			ids = model.deltaDecorations(ids, [decoration(new Range(1, 3, 1, 8))]);
-			assert.strictEqual(model.getLineConcealedText(1).length, 0, 'applied again with the caret at its end: still revealed');
-			moveTo(editor, viewModel, 1, 1);
-			assert.strictEqual(model.getLineConcealedText(1).length, 1, 'the caret left: concealed again');
-		});
-	});
-
 	test('follows the conceal option when it is toggled', () => {
 		withTag({}, (editor, viewModel) => {
 			editor.updateOptions({ conceal: { enabled: false } });

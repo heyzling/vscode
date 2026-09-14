@@ -425,7 +425,7 @@ export class CursorsController extends Disposable {
 			eventsCollector.emitOutgoingEvent(new CursorStateChangedEvent(oldSelections, selections, oldModelVersionId, newState.modelVersionId, source || 'keyboard', reason, reachedMaxCursorCount));
 		}
 
-		// Concealed text revealed by an edit or a delete key hides again once no caret is at it.
+		// Concealed text revealed by a delete key hides again once no caret is at it.
 		this._model.keepConcealedTextRevealedAt(this, selections.flatMap(selection => [selection.getStartPosition(), selection.getEndPosition()]));
 
 		return true;

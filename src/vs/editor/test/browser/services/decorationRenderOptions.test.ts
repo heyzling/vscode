@@ -31,7 +31,7 @@ suite('Decoration Render Options', () => {
 	test('a per-range conceal replacement overrides the type replacement, keeping its behaviour', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));
 		store.add(s.registerDecorationType('test', 'conceal-parent', {
-			conceal: { replacement: { contentText: 'key' }, anchor: 'before', deletionPolicy: 'protect', revealOnEdit: false, preserveWidth: true }
+			conceal: { replacement: { contentText: 'key' }, anchor: 'before', deletionPolicy: 'protect', preserveWidth: true }
 		}));
 		store.add(s.registerDecorationType('test', 'conceal-parent-sub', {
 			conceal: { replacement: { contentText: 'Place order\nsecond line' } }
@@ -41,7 +41,6 @@ suite('Decoration Render Options', () => {
 		assert.strictEqual(resolved.concealedText?.replacement?.content, 'Place ordersecond line', 'the range draws its own string, with line feeds dropped');
 		assert.strictEqual(resolved.concealedText?.anchor, ConcealedTextAnchor.Before, 'the caret stop stays the type\'s');
 		assert.strictEqual(resolved.concealedText?.deletionPolicy, ConcealedTextDeletionPolicy.Protect, 'the deletion policy stays the type\'s');
-		assert.strictEqual(resolved.concealedText?.revealOnEdit, false, 'revealOnEdit stays the type\'s');
 		assert.strictEqual(resolved.concealedText?.preserveWidth, true, 'preserveWidth stays the type\'s');
 
 		const parent = s.resolveDecorationOptions('conceal-parent', false);

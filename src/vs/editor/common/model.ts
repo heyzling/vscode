@@ -400,12 +400,6 @@ export interface ConcealedTextOptions {
 	readonly deletionPolicy?: ConcealedTextDeletionPolicy;
 
 	/**
-	 * Whether an edit inside the concealed range stops it being concealed until the decoration
-	 * is applied again. Defaults to true.
-	 */
-	readonly revealOnEdit?: boolean;
-
-	/**
 	 * Which text the concealed range belongs to: which end of the range its one caret stop
 	 * stands for, and where a line break or whitespace typed there lands.
 	 *
@@ -463,7 +457,8 @@ export enum ConcealedTextDeletionPolicy {
 	 */
 	Protect,
 	/**
-	 * The key reveals the range and deletes nothing. A revealed range is ordinary text.
+	 * The key reveals the range and deletes nothing. A revealed range is ordinary text, and
+	 * stays revealed while a caret is inside it or at either end.
 	 */
 	Reveal,
 }

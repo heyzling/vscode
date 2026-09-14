@@ -1516,7 +1516,6 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			// and we want to read the final decorations
 			for (let i = 0, len = contentChanges.length; i < len; i++) {
 				const change = contentChanges[i];
-				this._markConcealedTextRevealedByEdit(change.rangeOffset, change.rangeOffset + change.rangeLength);
 				this._decorationsTree.acceptReplace(change.rangeOffset, change.rangeLength, change.text.length, change.forceMoveMarkers);
 			}
 
@@ -1866,9 +1865,6 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		const endOffset = startOffset + this._buffer.getLineLength(lineNumber);
 
 		let result = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
-		if (this._concealRevealedDecorationIds.size > 0) {
-			result = result.filter(d => !this._concealRevealedDecorationIds.has(d.id));
-		}
 		if (this._concealRevealedSpans.length > 0) {
 			const spans = this._concealRevealedSpanRanges();
 			result = result.filter(d => !spans.some(span => Range.areIntersecting(span, d.range)));
@@ -1876,7 +1872,6 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		return LineConcealedText.fromDecorations(result, lineNumber);
 	}
 
-	private readonly _concealRevealedDecorationIds = new Set<string>();
 	// Revealed spans, as tracked ranges: kept while a reported caret is inside one or at its end.
 	private _concealRevealedSpans: string[] = [];
 	private readonly _concealCarets = new Map<object, Position[]>();
@@ -1904,20 +1899,11 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		} else {
 			this._concealCarets.delete(owner);
 		}
-		if (this._concealRevealedDecorationIds.size === 0 && this._concealRevealedSpans.length === 0) {
+		if (this._concealRevealedSpans.length === 0) {
 			return;
 		}
 		const carets = Array.from(this._concealCarets.values()).flat();
 		const held = (range: Range) => !range.isEmpty() && carets.some(caret => range.containsPosition(caret));
-		const spans = this._concealRevealedSpanRanges();
-		// A range revealed by an edit is kept past its owner applying the decoration again.
-		for (const id of this._concealRevealedDecorationIds) {
-			const range = this.getDecorationRange(id);
-			if (range && held(range) && !spans.some(span => Range.areIntersecting(span, range))) {
-				this._concealRevealedSpans.push(this._setTrackedRange(null, range, model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges));
-				spans.push(range);
-			}
-		}
 		const affectedLines: number[] = [];
 		this._concealRevealedSpans = this._concealRevealedSpans.filter(id => {
 			const range = this._getTrackedRange(id);
@@ -1944,30 +1930,6 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		}
 		this._onDidChangeDecorations.checkAffectedAndFire(ModelDecorationOptions.EMPTY);
 		this._onDidChangeDecorations.endDeferredEmit();
-	}
-
-	/**
-	 * Records the concealed ranges an edit changed inside, so they stop being concealed until
-	 * their decoration is applied again (`revealOnEdit`).
-	 */
-	private _markConcealedTextRevealedByEdit(startOffset: number, endOffset: number): void {
-		const candidates = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, 0);
-		for (const decoration of candidates) {
-			const concealedText = decoration.options.concealedText;
-			if (!concealedText || concealedText.revealOnEdit === false) {
-				continue;
-			}
-			const range = decoration.range;
-			const decorationStart = this._buffer.getOffsetAt(range.startLineNumber, range.startColumn);
-			const decorationEnd = this._buffer.getOffsetAt(range.endLineNumber, range.endColumn);
-			// An insertion at a boundary is beside the hidden text, not inside it.
-			const inside = startOffset === endOffset
-				? (startOffset > decorationStart && startOffset < decorationEnd)
-				: (startOffset < decorationEnd && endOffset > decorationStart);
-			if (inside) {
-				this._concealRevealedDecorationIds.add(decoration.id);
-			}
-		}
 	}
 
 	public getFontDecorationsInRange(range: IRange, ownerId: number = 0): model.IModelDecoration[] {
@@ -2120,7 +2082,6 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 
 					// (2) remove the node from the tree (if it exists)
 					if (node) {
-						this._concealRevealedDecorationIds.delete(decorationId);
 						if (node.options.after) {
 							const nodeRange = this._decorationsTree.getNodeRange(this, node);
 							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.endLineNumber);
@@ -2617,14 +2578,12 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	readonly anchor: model.ConcealedTextAnchor;
 	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
-	readonly revealOnEdit: boolean;
 
 	private constructor(options: model.ConcealedTextOptions) {
 		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
 		this.anchor = options.anchor ?? model.ConcealedTextAnchor.Auto;
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
-		this.revealOnEdit = options.revealOnEdit ?? true;
 	}
 }
 

@@ -68,17 +68,10 @@ declare module 'vscode' {
 		 * - `atomic` (default): the whole range is deleted, as one undo step.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
 		 * - `reveal`: deletion only reveals the range and deletes nothing. A revealed range is ordinary
-		 * text, so the next press acts on characters that can be seen.
+		 *   text, so the next press acts on characters that can be seen; it stays revealed while a
+		 *   cursor is inside it or at either end.
 		 */
 		deletionPolicy?: 'atomic' | 'protect' | 'reveal';
-
-		/**
-		 * Whether an edit inside a concealed range reveals it. Defaults to `true`.
-		 *
-		 * A range revealed by an edit stays revealed until the decoration is applied again. Any
-		 * revealed range also stays revealed while a cursor is inside it or at either end.
-		 */
-		revealOnEdit?: boolean;
 	}
 
 	export interface DecorationInstanceRenderOptions {

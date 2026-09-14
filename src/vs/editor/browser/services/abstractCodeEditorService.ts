@@ -556,7 +556,6 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
 				: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
 					: ConcealedTextDeletionPolicy.Atomic;
-			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
 			if (replacement && replacement.contentText) {
@@ -569,11 +568,10 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					},
 					preserveWidth,
 					anchor,
-					deletionPolicy,
-					revealOnEdit
+					deletionPolicy
 				};
 			} else {
-				this.concealedText = { anchor, deletionPolicy, revealOnEdit };
+				this.concealedText = { anchor, deletionPolicy };
 			}
 		}
 

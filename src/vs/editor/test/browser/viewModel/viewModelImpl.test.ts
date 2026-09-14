@@ -592,25 +592,21 @@ suite('ViewModel', () => {
 		});
 	});
 
-	test('an edit inside a concealed range reveals it until its owner applies the decoration again', () => {
+	test('an edit inside a concealed range keeps it concealed, the range following the edit', () => {
 		testViewModel(
 			[
 				'is #done by now'
 			],
 			{},
 			(viewModel, model) => {
-				const decorate = () => model.deltaDecorations(model.getAllDecorations().map(d => d.id), [{
+				model.deltaDecorations([], [{
 					range: new Range(1, 4, 1, 9),
 					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { replacement: { content: '°' } } }
 				}]);
-				decorate();
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now');
 
-				model.applyEdits([{ range: new Range(1, 5, 1, 6), text: 'X' }]);
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'is #Xone by now', 'the hidden text changed, so it stops being hidden');
-
-				decorate();
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now');
+				model.applyEdits([{ range: new Range(1, 5, 1, 6), text: 'XY' }]);
+				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now', 'the picture is the owner\'s until it applies the decoration again');
+				assert.deepStrictEqual(model.getLineConcealedText(1).map(c => [c.startColumn, c.endColumn]), [[4, 10]], 'the range grew with the edit');
 			}
 		);
 	});
@@ -629,24 +625,6 @@ suite('ViewModel', () => {
 
 				model.applyEdits([{ range: new Range(1, 9, 1, 9), text: 'Y' }]);
 				assert.deepStrictEqual(viewModel.getLineContent(1), 'is °Y by now', 'text typed at the boundary is outside the hidden text');
-			}
-		);
-	});
-
-	test('revealOnEdit false keeps concealing through an edit', () => {
-		testViewModel(
-			[
-				'is #done by now'
-			],
-			{},
-			(viewModel, model) => {
-				model.deltaDecorations([], [{
-					range: new Range(1, 4, 1, 9),
-					options: { description: 'test', stickiness: TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges, concealedText: { replacement: { content: '°' }, revealOnEdit: false } }
-				}]);
-
-				model.applyEdits([{ range: new Range(1, 5, 1, 6), text: 'X' }]);
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'is ° by now', 'the owner opted out: it makes the edit itself and re-parses');
 			}
 		);
 	});

@@ -570,9 +570,8 @@ export namespace ConcealRenderOptions {
 	export function from(options: vscode.ConcealRenderOptions): IConcealDecorationRenderOptions {
 		const anchor = options.anchor === 'before' || options.anchor === 'after' || options.anchor === 'lineStart' || options.anchor === 'lineEnd' ? options.anchor : undefined;
 		const deletionPolicy = options.deletionPolicy === 'protect' || options.deletionPolicy === 'reveal' ? options.deletionPolicy : undefined;
-		const revealOnEdit = options.revealOnEdit === false ? false : undefined;
 		if (!options.replacement) {
-			return { anchor, deletionPolicy, revealOnEdit };
+			return { anchor, deletionPolicy };
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
 		if (replacement.contentText) {
@@ -580,7 +579,7 @@ export namespace ConcealRenderOptions {
 			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
 		}
 		const preserveWidth = options.preserveWidth === true ? true : undefined;
-		return { replacement, preserveWidth, anchor, deletionPolicy, revealOnEdit };
+		return { replacement, preserveWidth, anchor, deletionPolicy };
 	}
 }
 
