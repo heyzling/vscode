@@ -10,8 +10,9 @@ declare module 'vscode' {
 
 	export interface DecorationRenderOptions {
 		/**
-		 * Conceal the decorated ranges: render something else instead of real text.
-		 * Real file context will not change, so it can be copied and searched.
+		 * Conceal the decorated ranges: something else, or nothing, is rendered in place of their
+		 * text. The document keeps the text, so it is still saved, searched and copied. Concealed
+		 * text holds no cursor positions.
 		 *
 		 * Only ranges within a single line are concealed.
 		 *
@@ -25,56 +26,60 @@ declare module 'vscode' {
 	 */
 	export interface ConcealRenderOptions {
 		/**
-		 * What is rendered in place of the concealed text. Defaults to rendering nothing.
+		 * Rendered in place of the concealed text. Omitted, or with an empty `contentText`,
+		 * nothing is rendered.
 		 *
-		 * It is drawn in the color and font style of the text it stands for,
-		 * unless the options set their own.
+		 * It is drawn: it holds no document position and is never selected or
+		 * copied. It takes the color and font style of the text it stands for, unless the options
+		 * set their own. Line feeds are dropped from `contentText`.
 		 */
 		replacement?: ThemableDecorationAttachmentRenderOptions;
 
 		/**
-		 * Draw the replacement at the rendered width of the text it stands for.
-		 * Width is measured in rendered cells.
+		 * Draw the replacement at the rendered width of the text it stands for: padded when
+		 * narrower, clipped with `…` when wider. Width is measured in rendered cells.
 		 * Defaults to `false`.
 		 */
 		preserveWidth?: boolean;
 
 		/**
-		 * Where cursor stops near concealed range.
-		 * Makes sense only for invisible text.
+		 * Where the cursor stops at a concealed range, and where a line break or whitespace typed
+		 * at that stop lands. Typed characters land at the stop.
 		 *
-		 * - `auto` (default): the stop is the end the caret was travelling towards;
-		 *   a caret already at either end stays, and an arrival with no direction falls back to
-		 *   the end.
-		 * - `before`: in front of the range. Typed characters land in front of the range,
-		 * a line break or whitespace behind it.
-		 * - `after`: behind the range. Typed characters land behind the range,
-		 * a line break or whitespace in front of it.
-		 * - `lineStart`: the line, from its first column.
-		 * As `after`, but a line break still move concealed range at the start as well.
-		 * I.e. typing lands after concealed range, new line lands before.
-		 * - `lineEnd`: the line, to its last column.
-		 * As `before`, but a line break still move concealed range at the start as well.
-		 * I.e. typing lands before concealed range, new line lands after.
+		 * - `auto` (default): the stop is the end the cursor was travelling towards; a cursor
+		 *   already at either end stays, and an arrival with no direction falls back to the end.
+		 * - `before`: the stop is the range's start. A line break or whitespace lands behind the
+		 *   range.
+		 * - `after`: the stop is the range's end. A line break or whitespace lands in front of the
+		 *   range.
+		 * - `lineStart`: as `after`, but a line break moves the whole line down
+		 * and whitespace lands in front of the range.
+		 * - `lineEnd`: as `before`, but whitespace stays in front of the range, so nothing follows it on its line.
+		 *
+		 * `auto`, `before` and `after` are read only when nothing is drawn in the range's place,
+		 * since a replacement has a side per end; `lineStart` and `lineEnd` apply drawn or not.
+		 * A paste at the stop is split the same way at its line breaks.
+		 */
 		anchor?: 'auto' | 'before' | 'after' | 'lineStart' | 'lineEnd';
 
 		/**
 		 * What Backspace, Delete and word-delete do at a concealed range.
 		 *
 		 * - `atomic` (default): the whole range is deleted, as one undo step.
-		 * - `passthrough`: the keys act on the hidden characters as if they were visible. Only
-		 *   meaningful with a replacement; with nothing drawn it acts as `atomic`.
+		 * - `passthrough`: the keys act on the hidden characters as if they were visible. It needs
+		 *   a cursor stop at each end, so with nothing drawn, or under `lineStart` and `lineEnd`,
+		 *   it acts as `atomic`.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
-		 * Important for invsible ranges.
-		 * - `reveal`: deletion attempt reveals the range and deletes nothing.
-		 * Revealed text can be edited.
+		 * - `reveal`: deletion only reveals the range and deletes nothing. A revealed range is ordinary
+		 * text, so the next press acts on characters that can be seen.
 		 */
 		deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
 
 		/**
-		 * Whether an edit reveal concealment. Defaults to `true` as a failsafe.
+		 * Whether an edit inside a concealed range reveals it. Defaults to `true`.
 		 *
-		 * A revealed range stays revealed while a caret is inside it or at either end.
+		 * A range revealed by an edit stays revealed until the decoration is applied again. Any
+		 * revealed range also stays revealed while a cursor is inside it or at either end.
 		 */
 		revealOnEdit?: boolean;
 	}
