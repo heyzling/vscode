@@ -26,8 +26,8 @@ declare module 'vscode' {
 	 */
 	export interface ConcealRenderOptions {
 		/**
-		 * Rendered in place of the concealed text. Omitted, or with an empty `contentText`,
-		 * nothing is rendered.
+		 * Rendered in place of the concealed text.
+		 * If omitted, or if `contentText` is empty, nothing is rendered
 		 *
 		 * It is drawn: it holds no document position and is never selected or
 		 * copied. It takes the color and font style of the text it stands for, unless the options
@@ -78,7 +78,7 @@ declare module 'vscode' {
 		/**
 		 * Conceal options for this range alone, overriding the decoration type's.
 		 *
-		 * For performance reasons, keep the number of decoration specific options small, and
+		 * For performance reasons, keep the number of decoration-specific options small, and
 		 * use decoration types wherever possible.
 		 */
 		conceal?: ConcealInstanceRenderOptions;
