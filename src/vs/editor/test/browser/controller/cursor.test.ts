@@ -7088,20 +7088,65 @@ suite('Editor Controller - Concealed Text', () => {
 	test('with nothing drawn, cursorStop says which end the one place is', () => {
 		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.After, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
-			editor.runCommand(CoreEditingCommands.Tab, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd  note text', 'the indent goes behind the id');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text', 'typed text goes behind the id');
 		});
 
 		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.Before, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
-			editor.runCommand(CoreEditingCommands.Tab, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), '   ^ab12cd note text', 'the indent goes in front of the id');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'X^ab12cd note text', 'typed text goes in front of the id');
 		});
+	});
 
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.Before, (editor, viewModel) => {
-			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+	test('a line break or whitespace typed at a declared stop lands outside the construct', () => {
+		// `aa **bold** zz` with both markers concealed: the opening one stops behind itself, the closing one in front.
+		const withEmphasis = (callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void) => {
+			withTestCodeEditor('aa **bold** zz', {}, (editor, viewModel) => {
+				editor.getModel()!.deltaDecorations([], [{
+					range: new Range(1, 4, 1, 6),
+					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+				}, {
+					range: new Range(1, 10, 1, 12),
+					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+				}]);
+				callback(editor, viewModel);
+			});
+		};
+
+		withEmphasis((editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 10);
 			viewModel.type('\n', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getValue(), '\n^ab12cd note text', 'and the id moves down with the text it belongs to');
+			assert.strictEqual(editor.getModel()!.getValue(), 'aa **bold**\n zz', 'Enter at the visible end of the emphasis closes it first');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 1));
+		});
+
+		withEmphasis((editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 10);
+			viewModel.type(' ', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa **bold**  zz', 'a space there separates words outside the emphasis');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 13));
+		});
+
+		withEmphasis((editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 6);
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), 'aa \n**bold** zz', 'Enter at the visible start of the emphasis breaks the line in front of it');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 3), 'with the caret still at the start of the word');
+		});
+
+		withEmphasis((editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 6);
+			viewModel.type(' ', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa  **bold** zz', 'a space there goes in front of the emphasis');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 7));
+		});
+
+		withConcealedRange('   **bold**', new Range(1, 4, 1, 6), { cursorStop: ConcealedTextCursorStop.After }, {}, (editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 6);
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '   \n   **bold**', 'the moved text keeps the line\'s indentation');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 6));
 		});
 	});
 

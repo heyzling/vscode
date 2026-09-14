@@ -469,11 +469,13 @@ export enum ConcealedTextDeletionPolicy {
  */
 export enum ConcealedTextCursorStop {
 	/**
-	 * The end of the range: text typed there lands after the hidden text.
+	 * The end of the range: text typed there lands after the hidden text. A line break or
+	 * whitespace typed there lands before it.
 	 */
 	After,
 	/**
-	 * The start of the range: text typed there lands before the hidden text.
+	 * The start of the range: text typed there lands before the hidden text. A line break or
+	 * whitespace typed there lands after it.
 	 */
 	Before,
 	/**

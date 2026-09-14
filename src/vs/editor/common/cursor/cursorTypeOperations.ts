@@ -11,7 +11,7 @@ import { Selection } from '../core/selection.js';
 import { Position } from '../core/position.js';
 import { ICommand } from '../editorCommon.js';
 import { ITextModel } from '../model.js';
-import { positionOutsideAnchoredConcealedText } from './cursorConcealedText.js';
+import { positionPastConcealedTextFor } from './cursorConcealedText.js';
 import { AutoClosingOpenCharTypeOperation, AutoClosingOvertypeOperation, AutoClosingOvertypeWithInterceptorsOperation, AutoIndentOperation, CompositionOperation, CompositionEndOvertypeOperation, EnterOperation, InterceptorElectricCharOperation, PasteOperation, shiftIndent, shouldSurroundChar, SimpleCharacterTypeOperation, SurroundSelectionOperation, TabOperation, TypeWithoutInterceptorsOperation, unshiftIndent } from './cursorTypeEditOperations.js';
 
 export class TypeOperations {
@@ -170,7 +170,7 @@ export class TypeOperations {
 				if (!selection.isEmpty()) {
 					return selection;
 				}
-				const position = positionOutsideAnchoredConcealedText(selection.getPosition(), model, config.concealedText, 'whitespace');
+				const position = positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealedText);
 				return position.equals(selection.getPosition()) ? selection : Selection.fromPositions(position);
 			});
 		}

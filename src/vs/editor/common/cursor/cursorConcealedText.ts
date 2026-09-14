@@ -260,12 +260,13 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 }
 
 /**
- * Where an edit that belongs to the line rather than to its text goes when made at an anchored
- * range's caret stop. A line break goes in front of the whole line at a line-start range and
- * behind a line-end one; whitespace is indentation, in front of a line-start range and left at
- * a line-end one.
+ * Where a line break or whitespace typed at a concealed range's caret stop goes: past the range,
+ * outside the construct it belongs to. With a declared `cursorStop` that is the far end. An
+ * anchored range is line metadata: a line break goes in front of the whole line at a line-start
+ * range and behind a line-end one, and whitespace is indentation, in front of a line-start range
+ * and left at a line-end one.
  */
-export function positionOutsideAnchoredConcealedText(position: Position, model: object, enabled: boolean, edit: 'lineBreak' | 'whitespace'): Position {
+export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', position: Position, model: object, enabled: boolean): Position {
 	if (!enabled || !isConcealAwareModel(model)) {
 		return position;
 	}
@@ -282,6 +283,15 @@ export function positionOutsideAnchoredConcealedText(position: Position, model: 
 			} else if (anchor === ConcealedTextAnchor.LineEnd && edit === 'lineBreak' && column === concealed.startColumn) {
 				column = concealed.endColumn;
 				moved = true;
+			} else if (anchor === undefined && !(concealed.options.replacement && concealed.options.replacement.content.length > 0)) {
+				const cursorStop = concealed.options.cursorStop ?? ConcealedTextCursorStop.Auto;
+				if (cursorStop === ConcealedTextCursorStop.After && column === concealed.endColumn) {
+					column = concealed.startColumn;
+					moved = true;
+				} else if (cursorStop === ConcealedTextCursorStop.Before && column === concealed.startColumn) {
+					column = concealed.endColumn;
+					moved = true;
+				}
 			}
 		}
 	}

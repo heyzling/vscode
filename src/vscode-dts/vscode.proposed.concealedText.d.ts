@@ -48,8 +48,12 @@ declare module 'vscode' {
 		 *
 		 * - `auto` (default): the end the caret is travelling towards. A caret already at either
 		 *   end stays; an arrival with no direction falls back to `after`.
-		 * - `before`: the range's start. A caret at the other end is moved here.
-		 * - `after`: the range's end.
+		 * - `before`: the range's start, what a closing delimiter wants. A caret at the other end
+		 *   is moved here.
+		 * - `after`: the range's end, what an opening delimiter wants.
+		 *
+		 * With a declared side, a line break or whitespace typed at the stop lands on the far
+		 * side of the range, outside the construct: `**bold**` closes before the line breaks.
 		 */
 		cursorStop?: 'auto' | 'before' | 'after';
 
