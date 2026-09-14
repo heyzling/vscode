@@ -14,7 +14,7 @@ import { Position } from '../../../../common/core/position.js';
 import { Range } from '../../../../common/core/range.js';
 import { Selection } from '../../../../common/core/selection.js';
 import { ILanguageService } from '../../../../common/languages/language.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../../../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextDeletionPolicy } from '../../../../common/model.js';
 import { ILanguageConfigurationService } from '../../../../common/languages/languageConfigurationRegistry.js';
 import { ViewModel } from '../../../../common/viewModel/viewModelImpl.js';
 import { CursorWordAccessibilityLeft, CursorWordAccessibilityLeftSelect, CursorWordAccessibilityRight, CursorWordAccessibilityRightSelect, CursorWordEndLeft, CursorWordEndLeftSelect, CursorWordEndRight, CursorWordEndRightSelect, CursorWordLeft, CursorWordLeftSelect, CursorWordRight, CursorWordRightSelect, CursorWordStartLeft, CursorWordStartLeftSelect, CursorWordStartRight, CursorWordStartRightSelect, DeleteInsideWord, DeleteWordEndLeft, DeleteWordEndRight, DeleteWordLeft, DeleteWordRight, DeleteWordStartLeft, DeleteWordStartRight } from '../../browser/wordOperations.js';
@@ -561,7 +561,7 @@ suite('WordOperations', () => {
 			const model = editor.getModel()!;
 			model.deltaDecorations([], [{
 				range: new Range(1, 1, 1, 8),
-				options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before } }
+				options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before } }
 			}]);
 
 			editor.setPosition(new Position(1, 8));
@@ -613,8 +613,8 @@ suite('WordOperations', () => {
 		withTestCodeEditor(['aa **bold** zz'], {}, (editor, _) => {
 			const model = editor.getModel()!;
 			model.deltaDecorations([], [
-				{ range: new Range(1, 4, 1, 6), options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
-				{ range: new Range(1, 10, 1, 12), options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+				{ range: new Range(1, 4, 1, 6), options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+				{ range: new Range(1, 10, 1, 12), options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
 			]);
 			editor.setPosition(new Position(1, 10));
 			deleteWordLeft(editor);

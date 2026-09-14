@@ -184,9 +184,9 @@ suite('ExtHostTypeConverter', function () {
 		const short = ConcealRenderOptions.from({ replacement: { contentText: 'a\nb\r\nc' } });
 		assert.strictEqual(short.replacement!.contentText, 'abc', 'line feeds are dropped');
 
-		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'before' }).cursorStop, 'before');
-		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'after' }).cursorStop, 'after', 'auto is the default, so a declared side must survive');
-		assert.strictEqual(ConcealRenderOptions.from({ cursorStop: 'auto' }).cursorStop, undefined, 'the default is left unsaid');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'before' }).anchor, 'before');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'after' }).anchor, 'after', 'auto is the default, so a declared side must survive');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'auto' }).anchor, undefined, 'the default is left unsaid');
 
 		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'protect' }).deletionPolicy, 'protect');
 		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'passthrough' }).deletionPolicy, 'passthrough');

@@ -7,7 +7,7 @@ import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { Position } from '../../../common/core/position.js';
 import { Range } from '../../../common/core/range.js';
-import { ConcealedTextCursorStop, EndOfLineSequence, PositionAffinity, TrackedRangeStickiness } from '../../../common/model.js';
+import { ConcealedTextAnchor, EndOfLineSequence, PositionAffinity, TrackedRangeStickiness } from '../../../common/model.js';
 import { ViewEventHandler } from '../../../common/viewEventHandler.js';
 import { ViewEvent } from '../../../common/viewEvents.js';
 import { testViewModel } from './testViewModel.js';
@@ -428,7 +428,7 @@ suite('ViewModel', () => {
 
 	test('a concealed range at the line start does not cost the line its number', () => {
 		// What the margin checks: the line's first model column is drawn on this row.
-		for (const cursorStop of [ConcealedTextCursorStop.After, ConcealedTextCursorStop.Before]) {
+		for (const anchor of [ConcealedTextAnchor.After, ConcealedTextAnchor.Before]) {
 			testViewModel(
 				[
 					'^ab12cd note text'
@@ -437,13 +437,13 @@ suite('ViewModel', () => {
 				(viewModel, model) => {
 					model.deltaDecorations([], [{
 						range: new Range(1, 1, 1, 9),
-						options: { description: 'test', concealedText: { cursorStop } }
+						options: { description: 'test', concealedText: { anchor } }
 					}]);
 
 					const converter = viewModel.coordinatesConverter;
 					const modelPosition = converter.convertViewPositionToModelPosition(new Position(1, 1));
 					const firstRowOfLine = converter.convertModelPositionToViewPosition(new Position(modelPosition.lineNumber, 1)).lineNumber;
-					assert.strictEqual(firstRowOfLine, 1, `${cursorStop}: the line's first column is drawn on this row, so the margin keeps the number`);
+					assert.strictEqual(firstRowOfLine, 1, `${anchor}: the line's first column is drawn on this row, so the margin keeps the number`);
 				}
 			);
 		}

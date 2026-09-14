@@ -21,7 +21,7 @@ import { ILanguageService } from '../../../common/languages/language.js';
 import { IndentAction, IndentationRule } from '../../../common/languages/languageConfiguration.js';
 import { ILanguageConfigurationService } from '../../../common/languages/languageConfigurationRegistry.js';
 import { NullState } from '../../../common/languages/nullTokenize.js';
-import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, EndOfLinePreference, EndOfLineSequence, ITextModel, TrackedRangeStickiness } from '../../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextDeletionPolicy, ConcealedTextOptions, EndOfLinePreference, EndOfLineSequence, ITextModel, TrackedRangeStickiness } from '../../../common/model.js';
 import { TextModel } from '../../../common/model/textModel.js';
 import { ViewModel } from '../../../common/viewModel/viewModelImpl.js';
 import { OutgoingViewModelEventKind } from '../../../common/viewModelEventDispatcher.js';
@@ -6747,8 +6747,8 @@ suite('Editor Controller - Concealed Text', () => {
 		withConcealedRange(LINE, TAG, { replacement: { content: '✅' } }, options, callback);
 	}
 
-	function withHiddenId(line: string, range: Range, cursorStop: ConcealedTextCursorStop, callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void): void {
-		withConcealedRange(line, range, { cursorStop }, {}, callback);
+	function withHiddenId(line: string, range: Range, anchor: ConcealedTextAnchor, callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void): void {
+		withConcealedRange(line, range, { anchor }, {}, callback);
 	}
 
 	function withConcealedRange(line: string, range: Range, concealedText: ConcealedTextOptions, options: IEditorOptions, callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void): void {
@@ -6822,13 +6822,13 @@ suite('Editor Controller - Concealed Text', () => {
 
 	test('leaves a caret aimed at it collapsed', () => {
 		// A bare caret, not a selection over the range: Home then Tab used to delete it.
-		for (const cursorStop of [ConcealedTextCursorStop.After, ConcealedTextCursorStop.Before]) {
-			withHiddenId(ID_LINE, ID, cursorStop, (editor, viewModel) => {
+		for (const anchor of [ConcealedTextAnchor.After, ConcealedTextAnchor.Before]) {
+			withHiddenId(ID_LINE, ID, anchor, (editor, viewModel) => {
 				CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
-				assert.strictEqual(viewModel.getSelection().isEmpty(), true, `${cursorStop}: Home leaves a caret, not a selection`);
+				assert.strictEqual(viewModel.getSelection().isEmpty(), true, `${anchor}: Home leaves a caret, not a selection`);
 
 				editor.runCommand(CoreEditingCommands.Tab, null);
-				assert.ok(editor.getModel()!.getLineContent(1).includes('^ab12cd'), `${cursorStop}: the id survives an indent at the line start`);
+				assert.ok(editor.getModel()!.getLineContent(1).includes('^ab12cd'), `${anchor}: the id survives an indent at the line start`);
 			});
 		}
 	});
@@ -6863,10 +6863,10 @@ suite('Editor Controller - Concealed Text', () => {
 			withTestCodeEditor('aa **bold** zz', {}, (editor, viewModel) => {
 				editor.getModel()!.deltaDecorations([], [{
 					range: new Range(1, 4, 1, 6),
-					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+					options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
 				}, {
 					range: new Range(1, 10, 1, 12),
-					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+					options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
 				}]);
 				callback(editor, viewModel);
 			});
@@ -6958,7 +6958,7 @@ suite('Editor Controller - Concealed Text', () => {
 	});
 
 	test('reveal with nothing drawn: one key edits the visible neighbour, the other reveals', () => {
-		withConcealedRange('a ^ab12cd z', new Range(1, 3, 1, 10), { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Reveal }, {}, (editor, viewModel) => {
+		withConcealedRange('a ^ab12cd z', new Range(1, 3, 1, 10), { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Reveal }, {}, (editor, viewModel) => {
 			const model = editor.getModel()!;
 			moveTo(editor, viewModel, 1, 3);
 			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
@@ -7085,14 +7085,14 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('with nothing drawn, cursorStop says which end the one place is', () => {
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.After, (editor, viewModel) => {
+	test('with nothing drawn, anchor says which end the one place is', () => {
+		withHiddenId(ID_LINE, ID, ConcealedTextAnchor.After, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
 			viewModel.type('X', 'keyboard');
 			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text', 'typed text goes behind the id');
 		});
 
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.Before, (editor, viewModel) => {
+		withHiddenId(ID_LINE, ID, ConcealedTextAnchor.Before, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
 			viewModel.type('X', 'keyboard');
 			assert.strictEqual(editor.getModel()!.getLineContent(1), 'X^ab12cd note text', 'typed text goes in front of the id');
@@ -7105,10 +7105,10 @@ suite('Editor Controller - Concealed Text', () => {
 			withTestCodeEditor('aa **bold** zz', {}, (editor, viewModel) => {
 				editor.getModel()!.deltaDecorations([], [{
 					range: new Range(1, 4, 1, 6),
-					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+					options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
 				}, {
 					range: new Range(1, 10, 1, 12),
-					options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
+					options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } }
 				}]);
 				callback(editor, viewModel);
 			});
@@ -7142,7 +7142,7 @@ suite('Editor Controller - Concealed Text', () => {
 			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 7));
 		});
 
-		withConcealedRange('   **bold**', new Range(1, 4, 1, 6), { cursorStop: ConcealedTextCursorStop.After }, {}, (editor, viewModel) => {
+		withConcealedRange('   **bold**', new Range(1, 4, 1, 6), { anchor: ConcealedTextAnchor.After }, {}, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 6);
 			viewModel.type('\n', 'keyboard');
 			assert.strictEqual(editor.getModel()!.getValue(), '   \n   **bold**', 'the moved text keeps the line\'s indentation');
@@ -7237,8 +7237,8 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('an anchored range has one stop with a replacement too, and cursorStop is not read', () => {
-		withConcealedRange(ID_LINE, ID, { replacement: { content: '#' }, anchor: ConcealedTextAnchor.LineStart, cursorStop: ConcealedTextCursorStop.Before }, {}, (editor, viewModel) => {
+	test('line metadata has one stop with a replacement too', () => {
+		withConcealedRange(ID_LINE, ID, { replacement: { content: '#' }, anchor: ConcealedTextAnchor.LineStart }, {}, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 1);
 			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 9), 'a caret aimed in front of the replacement lands behind it');
 			viewModel.type('\n', 'keyboard');
@@ -7249,7 +7249,7 @@ suite('Editor Controller - Concealed Text', () => {
 	});
 
 	test('a concealed decoration never grows when typing at its edges unless told to', () => {
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.After, (editor, viewModel) => {
+		withHiddenId(ID_LINE, ID, ConcealedTextAnchor.After, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
 			viewModel.type('X', 'keyboard');
 			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text');
@@ -7257,8 +7257,8 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('with nothing drawn, cursorStop decides which side a selection stops at', () => {
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.Before, (editor, viewModel) => {
+	test('with nothing drawn, anchor decides which side a selection stops at', () => {
+		withHiddenId(ID_LINE, ID, ConcealedTextAnchor.Before, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 1);
 			moveTo(editor, viewModel, 1, 18, true);
 			assert.strictEqual(
@@ -7268,7 +7268,7 @@ suite('Editor Controller - Concealed Text', () => {
 			);
 		});
 
-		withHiddenId('   ^ab12cd note', new Range(1, 4, 1, 12), ConcealedTextCursorStop.Before, (editor, viewModel) => {
+		withHiddenId('   ^ab12cd note', new Range(1, 4, 1, 12), ConcealedTextAnchor.Before, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 1);
 			moveTo(editor, viewModel, 1, 4, true);
 			assert.strictEqual(
@@ -7283,17 +7283,17 @@ suite('Editor Controller - Concealed Text', () => {
 		// A find match, `Ctrl+D` or smart select can hand over a selection ending inside the range.
 		const searchHit = new Selection(1, 2, 1, 8); // what `Ctrl+F` for `ab12cd` selects
 
-		for (const cursorStop of [ConcealedTextCursorStop.After, ConcealedTextCursorStop.Before]) {
-			withHiddenId(ID_LINE, ID, cursorStop, (editor, viewModel) => {
+		for (const anchor of [ConcealedTextAnchor.After, ConcealedTextAnchor.Before]) {
+			withHiddenId(ID_LINE, ID, anchor, (editor, viewModel) => {
 				editor.setSelection(searchHit);
 				assert.deepStrictEqual(
 					viewModel.getSelection(),
 					new Selection(1, 1, 1, 9),
-					`${cursorStop}: the selection grows to cover the whole id`
+					`${anchor}: the selection grows to cover the whole id`
 				);
 
 				viewModel.type('X', 'keyboard');
-				assert.strictEqual(editor.getModel()!.getLineContent(1), 'Xnote text', `${cursorStop}: and typing over it leaves no half of one behind`);
+				assert.strictEqual(editor.getModel()!.getLineContent(1), 'Xnote text', `${anchor}: and typing over it leaves no half of one behind`);
 			});
 		}
 
@@ -7306,7 +7306,7 @@ suite('Editor Controller - Concealed Text', () => {
 	});
 
 	test('a selection made backwards into it grows the same way', () => {
-		withConcealedRange('aa https://a.io bb', new Range(1, 4, 1, 16), { cursorStop: ConcealedTextCursorStop.Before }, {}, (editor, viewModel) => {
+		withConcealedRange('aa https://a.io bb', new Range(1, 4, 1, 16), { anchor: ConcealedTextAnchor.Before }, {}, (editor, viewModel) => {
 			editor.setSelection(new Selection(1, 8, 1, 1));
 			assert.deepStrictEqual(viewModel.getSelection(), new Selection(1, 16, 1, 1));
 			viewModel.type('X', 'keyboard');
@@ -7315,7 +7315,7 @@ suite('Editor Controller - Concealed Text', () => {
 	});
 
 	test('a paste over such a selection takes it whole too', () => {
-		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.Before, (editor, viewModel) => {
+		withHiddenId(ID_LINE, ID, ConcealedTextAnchor.Before, (editor, viewModel) => {
 			editor.setSelection(new Selection(1, 4, 1, 9));
 			viewModel.paste('ZZZ', false);
 			assert.strictEqual(editor.getModel()!.getLineContent(1), 'ZZZnote text');
@@ -7376,7 +7376,7 @@ suite('Editor Controller - Concealed Text', () => {
 			editor.setSelection(new Selection(1, 5, 1, 5));
 			editor.getModel()!.deltaDecorations([], [{
 				range: ID,
-				options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before } }
+				options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before } }
 			}]);
 
 			assert.deepStrictEqual(viewModel.getSelection(), new Selection(1, 1, 1, 1), 'the caret is moved to the end the range stands for');

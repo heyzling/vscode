@@ -9,7 +9,7 @@ import { ICodeEditor } from '../../../../browser/editorBrowser.js';
 import { EditorCommand } from '../../../../browser/editorExtensions.js';
 import { Position } from '../../../../common/core/position.js';
 import { Range } from '../../../../common/core/range.js';
-import { ConcealedTextCursorStop } from '../../../../common/model.js';
+import { ConcealedTextAnchor } from '../../../../common/model.js';
 import { ILanguageConfigurationService } from '../../../../common/languages/languageConfigurationRegistry.js';
 import { deserializePipePositions, serializePipePositions, testRepeatedActionAndExtractPositions } from '../../../wordOperations/test/browser/wordTestUtils.js';
 import { CursorWordPartLeft, CursorWordPartLeftSelect, CursorWordPartRight, CursorWordPartRightSelect, DeleteWordPartLeft, DeleteWordPartRight } from '../../browser/wordPartOperations.js';
@@ -292,7 +292,7 @@ suite('WordPartOperations', () => {
 		withTestCodeEditor(['aa AbstractProxyBean bb'], {}, (editor) => {
 			editor.getModel()!.deltaDecorations([], [{
 				range: new Range(1, 4, 1, 21),
-				options: { description: 'test-conceal', concealedText: { cursorStop: ConcealedTextCursorStop.Before } }
+				options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before } }
 			}]);
 
 			editor.setPosition(new Position(1, 1));

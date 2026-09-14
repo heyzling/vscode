@@ -43,19 +43,31 @@ declare module 'vscode' {
 		preserveWidth?: boolean;
 
 		/**
-		 * Which end of the concealed range the one place it collapses to stands for. Only read
-		 * when nothing is drawn in its place.
+		 * Which text the concealed range belongs to. It decides which end of the range its one
+		 * caret stop stands for, where characters typed at that stop land, and where a line
+		 * break or whitespace typed there goes.
 		 *
-		 * - `auto` (default): the end the caret is travelling towards. A caret already at either
-		 *   end stays; an arrival with no direction falls back to `after`.
-		 * - `before`: the range's start, what a closing delimiter wants. A caret at the other end
-		 *   is moved here.
-		 * - `after`: the range's end, what an opening delimiter wants.
+		 * - `auto` (default): neither side. The stop is the end the caret was travelling towards;
+		 *   a caret already at either end stays, and an arrival with no direction falls back to
+		 *   the end. Everything typed there lands at the stop.
+		 * - `before`: the text in front of the range, as a closing delimiter. The stop is the
+		 *   range's start: typed characters land in front of the range, a line break or
+		 *   whitespace behind it, so `**bold**` closes before the line breaks.
+		 * - `after`: the text behind the range, as an opening delimiter. The stop is the range's
+		 *   end: typed characters land behind the range, a line break or whitespace in front of
+		 *   it.
+		 * - `lineStart`: the line, from its first column. As `after`, but a line break typed at
+		 *   the stop goes in front of the whole line, which moves down with the caret still at
+		 *   the stop; the range keeps the first column of its text.
+		 * - `lineEnd`: the line, to its last column. As `before`, but whitespace typed at the
+		 *   stop stays in front of the range, so nothing follows it on its line.
 		 *
-		 * With a declared side, a line break or whitespace typed at the stop lands on the far
-		 * side of the range, outside the construct: `**bold**` closes before the line breaks.
+		 * `auto`, `before` and `after` are read only when nothing is drawn in the range's place,
+		 * since a replacement has a side per end; `lineStart` and `lineEnd` apply drawn or not.
+		 * A paste at the stop is split the same way at its line breaks. A join of two lines does
+		 * not move the range. `deletionPolicy: 'protect'` keeps the delete keys off it.
 		 */
-		cursorStop?: 'auto' | 'before' | 'after';
+		anchor?: 'auto' | 'before' | 'after' | 'lineStart' | 'lineEnd';
 
 		/**
 		 * What Backspace, Delete and word-delete do at a concealed range.
@@ -76,22 +88,6 @@ declare module 'vscode' {
 		 * by an edit also stays revealed until the decoration is applied again.
 		 */
 		revealOnEdit?: boolean;
-
-		/**
-		 * Which end of its line the concealed range leans to, for metadata that must keep its
-		 * place there. An anchored range has one caret stop, on the side of the text it belongs
-		 * to, drawn or not; `cursorStop` is not read.
-		 *
-		 * - `lineStart`: typed characters land after the range. Whitespace typed at the stop lands
-		 *   before it, and a line break in front of the whole line, which moves down with the
-		 *   caret still at the stop. The range keeps the first column of its text.
-		 * - `lineEnd`: typed characters land before the range. A line break typed at the stop
-		 *   lands after it, so the range stays on its line.
-		 *
-		 * A paste at the stop is split the same way at its line breaks. A join of two lines does
-		 * not move the range. `deletionPolicy: 'protect'` keeps the delete keys off it.
-		 */
-		anchor?: 'lineStart' | 'lineEnd';
 	}
 
 	export interface DecorationInstanceRenderOptions {

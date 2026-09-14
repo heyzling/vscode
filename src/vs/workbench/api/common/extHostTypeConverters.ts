@@ -568,12 +568,11 @@ export namespace ThemableDecorationRenderOptions {
 
 export namespace ConcealRenderOptions {
 	export function from(options: vscode.ConcealRenderOptions): IConcealDecorationRenderOptions {
-		const cursorStop = options.cursorStop === 'before' || options.cursorStop === 'after' ? options.cursorStop : undefined;
+		const anchor = options.anchor === 'before' || options.anchor === 'after' || options.anchor === 'lineStart' || options.anchor === 'lineEnd' ? options.anchor : undefined;
 		const deletionPolicy = options.deletionPolicy === 'passthrough' || options.deletionPolicy === 'protect' || options.deletionPolicy === 'reveal' ? options.deletionPolicy : undefined;
 		const revealOnEdit = options.revealOnEdit === false ? false : undefined;
-		const anchor = options.anchor === 'lineStart' || options.anchor === 'lineEnd' ? options.anchor : undefined;
 		if (!options.replacement) {
-			return { cursorStop, deletionPolicy, revealOnEdit, anchor };
+			return { anchor, deletionPolicy, revealOnEdit };
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
 		if (replacement.contentText) {
@@ -581,7 +580,7 @@ export namespace ConcealRenderOptions {
 			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
 		}
 		const preserveWidth = options.preserveWidth === true ? true : undefined;
-		return { replacement, preserveWidth, cursorStop, deletionPolicy, revealOnEdit, anchor };
+		return { replacement, preserveWidth, anchor, deletionPolicy, revealOnEdit };
 	}
 }
 

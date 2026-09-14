@@ -387,14 +387,6 @@ export interface ConcealedTextOptions {
 	readonly replacement?: InjectedTextOptions | null;
 
 	/**
-	 * Which end of the concealed range the one place it collapses to stands for. Only read
-	 * when there is no {@link replacement}.
-	 *
-	 * Defaults to {@link ConcealedTextCursorStop.Auto}.
-	 */
-	readonly cursorStop?: ConcealedTextCursorStop;
-
-	/**
 	 * If set, the {@link replacement} is drawn at the rendered width of the concealed text:
 	 * padded when narrower, clipped with `…` when wider. Defaults to false.
 	 */
@@ -414,27 +406,45 @@ export interface ConcealedTextOptions {
 	readonly revealOnEdit?: boolean;
 
 	/**
-	 * If set, the range is metadata of its line that leans to one end of the line's text, and
-	 * ordinary editing keeps it there. {@link cursorStop} is not read.
+	 * Which text the concealed range belongs to: which end of the range its one caret stop
+	 * stands for, and where a line break or whitespace typed there lands.
+	 *
+	 * Defaults to {@link ConcealedTextAnchor.Auto}.
 	 */
 	readonly anchor?: ConcealedTextAnchor;
 }
 
 /**
- * Which end of its line a concealed range leans to. The range has one caret stop, on the side
- * of the text it belongs to, drawn or not.
+ * Which text a concealed range belongs to. {@link Auto}, {@link Before} and {@link After} are
+ * read only with no {@link ConcealedTextOptions.replacement}, which has a side per end;
+ * {@link LineStart} and {@link LineEnd} apply drawn or not.
  * @internal
  */
 export enum ConcealedTextAnchor {
 	/**
-	 * The start of the text: typed characters land after the range. Whitespace typed at the stop
-	 * lands before it, and a line break in front of the whole line, so the range keeps the first
-	 * column of its text.
+	 * Neither side. The stop is the end the caret was travelling towards when it crossed into
+	 * the range; a caret already at either end stays, and an arrival with no direction falls
+	 * back to the end. Everything typed there lands at the stop.
+	 */
+	Auto,
+	/**
+	 * The text in front of the range, as a closing delimiter. The stop is the range's start:
+	 * typed characters land in front of the range, a line break or whitespace behind it.
+	 */
+	Before,
+	/**
+	 * The text behind the range, as an opening delimiter. The stop is the range's end: typed
+	 * characters land behind the range, a line break or whitespace in front of it.
+	 */
+	After,
+	/**
+	 * The line, from its first column. As {@link After}, but a line break typed at the stop goes
+	 * in front of the whole line, which moves down with the caret still at the stop.
 	 */
 	LineStart,
 	/**
-	 * The end of the line: typed characters land before the range. A line break typed at the
-	 * stop lands after it, so the range stays on its line.
+	 * The line, to its last column. As {@link Before}, but whitespace typed at the stop stays in
+	 * front of the range, so nothing follows it on its line.
 	 */
 	LineEnd,
 }
@@ -461,28 +471,6 @@ export enum ConcealedTextDeletionPolicy {
 	 * The key reveals the range and deletes nothing. A revealed range is ordinary text.
 	 */
 	Reveal,
-}
-
-/**
- * Which end of a concealed range with nothing drawn its single caret stop stands for.
- * @internal
- */
-export enum ConcealedTextCursorStop {
-	/**
-	 * The end of the range: text typed there lands after the hidden text. A line break or
-	 * whitespace typed there lands before it.
-	 */
-	After,
-	/**
-	 * The start of the range: text typed there lands before the hidden text. A line break or
-	 * whitespace typed there lands after it.
-	 */
-	Before,
-	/**
-	 * The end the caret was travelling towards when it crossed into the range. A caret already
-	 * at either end stays; an arrival with no direction falls back to {@link After}.
-	 */
-	Auto
 }
 
 /**

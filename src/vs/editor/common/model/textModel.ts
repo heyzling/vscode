@@ -2614,19 +2614,17 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	}
 
 	readonly replacement: ModelDecorationInjectedTextOptions | null;
-	readonly cursorStop: model.ConcealedTextCursorStop;
+	readonly anchor: model.ConcealedTextAnchor;
 	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
 	readonly revealOnEdit: boolean;
-	readonly anchor: model.ConcealedTextAnchor | undefined;
 
 	private constructor(options: model.ConcealedTextOptions) {
 		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
-		this.cursorStop = options.cursorStop ?? model.ConcealedTextCursorStop.Auto;
+		this.anchor = options.anchor ?? model.ConcealedTextAnchor.Auto;
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
 		this.revealOnEdit = options.revealOnEdit ?? true;
-		this.anchor = options.anchor;
 	}
 }
 

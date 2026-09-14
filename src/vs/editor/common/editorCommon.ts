@@ -677,10 +677,9 @@ export interface IThemeDecorationRenderOptions {
 export interface IConcealDecorationRenderOptions {
 	replacement?: IContentDecorationRenderOptions;
 	preserveWidth?: boolean;
-	cursorStop?: 'before' | 'after';
+	anchor?: 'before' | 'after' | 'lineStart' | 'lineEnd';
 	deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
 	revealOnEdit?: boolean;
-	anchor?: 'lineStart' | 'lineEnd';
 }
 
 /**

@@ -11,7 +11,7 @@ import { WrappingIndent } from './config/editorOptions.js';
 import { FontInfo } from './config/fontInfo.js';
 import { Position } from './core/position.js';
 import { OffsetRange } from './core/ranges/offsetRange.js';
-import { ConcealedTextAnchor, ConcealedTextCursorStop, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
+import { ConcealedTextAnchor, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
 import { LineConcealedText, LineInjectedText } from './textModelEvents.js';
 import { LineTokens, TokenArray, TokenInfo } from './tokens/lineTokens.js';
 
@@ -71,12 +71,13 @@ export class ModelLineProjectionData {
 		 */
 		public concealLengths: number[] | null = null,
 		/**
-		 * For each concealed range, which end its collapsed place stands for. A range with a
-		 * replacement carries {@link ConcealedTextCursorStop.After}.
+		 * For each concealed range, which end its collapsed place stands for: {@link ConcealedTextAnchor.Auto},
+		 * {@link ConcealedTextAnchor.Before} or {@link ConcealedTextAnchor.After}. A range with a
+		 * replacement carries `After`.
 		 *
 		 * `concealStops.length` must equal `concealOffsets.length`
 		 */
-		public concealStops: ConcealedTextCursorStop[] | null = null
+		public concealStops: ConcealedTextAnchor[] | null = null
 	) {
 	}
 
@@ -233,8 +234,8 @@ export class ModelLineProjectionData {
 				// place means. `Auto` resolves by travel direction and falls back to the end.
 				if (offsetInInputWithInjection === offsetSoFar) {
 					const stop = this.concealStops?.[concealIndex];
-					if (stop === ConcealedTextCursorStop.Before
-						|| (stop === ConcealedTextCursorStop.Auto && affinity === PositionAffinity.Left)) {
+					if (stop === ConcealedTextAnchor.Before
+						|| (stop === ConcealedTextAnchor.Auto && affinity === PositionAffinity.Left)) {
 						return inputOffset;
 					}
 				}
@@ -522,7 +523,7 @@ export interface IProjectedLineChanges {
 	readonly injectionOptions: InjectedTextOptions[] | null;
 	readonly concealOffsets: number[] | null;
 	readonly concealLengths: number[] | null;
-	readonly concealStops: ConcealedTextCursorStop[] | null;
+	readonly concealStops: ConcealedTextAnchor[] | null;
 }
 
 /**
@@ -587,7 +588,7 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 
 	const injectionOffsets: number[] = [];
 	const injectionOptions: InjectedTextOptions[] = [];
-	const concealStops: ConcealedTextCursorStop[] = [];
+	const concealStops: ConcealedTextAnchor[] = [];
 	const injections = injectedTexts ?? [];
 	let injectionIndex = 0;
 
@@ -617,14 +618,14 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 				: replacement);
 		}
 
-		// An anchored range has one stop, on the side of its text, drawn or not. Any other range
+		// Line metadata has one stop, on the side of its text, drawn or not. Any other range
 		// with a replacement has a side per end; it carries `After` and the stop never fires.
-		const anchor = concealedText.options.anchor;
+		const anchor = concealedText.options.anchor ?? ConcealedTextAnchor.Auto;
 		concealStops.push(
-			anchor === ConcealedTextAnchor.LineStart ? ConcealedTextCursorStop.After
-				: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextCursorStop.Before
-					: hasReplacement ? ConcealedTextCursorStop.After
-						: (concealedText.options.cursorStop ?? ConcealedTextCursorStop.Auto)
+			anchor === ConcealedTextAnchor.LineStart ? ConcealedTextAnchor.After
+				: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextAnchor.Before
+					: hasReplacement ? ConcealedTextAnchor.After
+						: anchor
 		);
 	}
 

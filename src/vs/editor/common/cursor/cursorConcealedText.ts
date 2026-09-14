@@ -5,7 +5,7 @@
 
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
-import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../model.js';
+import { ConcealedTextAnchor, ConcealedTextDeletionPolicy, ConcealedTextOptions } from '../model.js';
 import { LineConcealedText } from '../textModelEvents.js';
 
 /**
@@ -18,6 +18,17 @@ export interface IConcealAwareModel {
 
 export function isConcealAwareModel(model: object): model is IConcealAwareModel {
 	return typeof (model as IConcealAwareModel).getLineConcealedText === 'function';
+}
+
+function hasReplacement(options: ConcealedTextOptions): boolean {
+	return !!options.replacement && options.replacement.content.length > 0;
+}
+
+/**
+ * Whether the range is line metadata, with one caret stop drawn or not.
+ */
+function isLineAnchored(options: ConcealedTextOptions): boolean {
+	return options.anchor === ConcealedTextAnchor.LineStart || options.anchor === ConcealedTextAnchor.LineEnd;
 }
 
 /**
@@ -90,9 +101,8 @@ function deleteBoundaryOutsideConcealedText(model: IConcealAwareModel, lineNumbe
 			continue;
 		}
 		const policy = concealed.options.deletionPolicy ?? ConcealedTextDeletionPolicy.Atomic;
-		const replacement = concealed.options.replacement;
-		// Passthrough needs a caret stop at each end; an anchored range has one.
-		if (policy === ConcealedTextDeletionPolicy.Passthrough && replacement && replacement.content.length > 0 && concealed.options.anchor === undefined) {
+		// Passthrough needs a caret stop at each end; line metadata has one.
+		if (policy === ConcealedTextDeletionPolicy.Passthrough && hasReplacement(concealed.options) && !isLineAnchored(concealed.options)) {
 			return column;
 		}
 		if (policy === ConcealedTextDeletionPolicy.Protect && direction !== undefined) {
@@ -148,35 +158,29 @@ function columnOutsideConcealedText(model: IConcealAwareModel, lineNumber: numbe
 
 /**
  * The end of a concealed range a caret column belongs on. With a replacement only a column
- * strictly inside moves; with nothing drawn `cursorStop` decides which end the one place is.
+ * strictly inside moves; with nothing drawn the anchor decides which end the one place is.
  */
 function caretColumnOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number): number {
 	for (const concealed of model.getLineConcealedText(lineNumber)) {
-		const anchor = concealed.options.anchor;
-		if (anchor !== undefined) {
+		const anchor = concealed.options.anchor ?? ConcealedTextAnchor.Auto;
+		const inside = column > concealed.startColumn && column < concealed.endColumn;
+		const atOrInside = column >= concealed.startColumn && column <= concealed.endColumn;
+		if (isLineAnchored(concealed.options)) {
 			// One stop on the side of the range's text, drawn or not.
-			if (column >= concealed.startColumn && column <= concealed.endColumn) {
+			if (atOrInside) {
 				return anchor === ConcealedTextAnchor.LineStart ? concealed.endColumn : concealed.startColumn;
 			}
 			continue;
 		}
-		const replacement = concealed.options.replacement;
-		if (replacement && replacement.content.length > 0) {
-			if (column > concealed.startColumn && column < concealed.endColumn) {
+		if (hasReplacement(concealed.options) || anchor === ConcealedTextAnchor.Auto) {
+			// A side per end, or a side resolved when the caret moved: a caret at either end stays.
+			if (inside) {
 				return concealed.endColumn;
 			}
 			continue;
 		}
-		const cursorStop = concealed.options.cursorStop ?? ConcealedTextCursorStop.Auto;
-		if (cursorStop === ConcealedTextCursorStop.Auto) {
-			// Resolved when the caret moved; a caret already at either end stays, so this is idempotent.
-			if (column > concealed.startColumn && column < concealed.endColumn) {
-				return concealed.endColumn;
-			}
-			continue;
-		}
-		if (column >= concealed.startColumn && column <= concealed.endColumn) {
-			return cursorStop === ConcealedTextCursorStop.Before ? concealed.startColumn : concealed.endColumn;
+		if (atOrInside) {
+			return anchor === ConcealedTextAnchor.Before ? concealed.startColumn : concealed.endColumn;
 		}
 	}
 	return column;
@@ -233,10 +237,9 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 	for (let moved = true; moved;) {
 		moved = false;
 		for (const range of concealed) {
-			const replacement = range.options.replacement;
 			let from: number;
 			let to: number;
-			if (replacement && replacement.content.length > 0 && range.options.anchor === undefined) {
+			if (hasReplacement(range.options) && !isLineAnchored(range.options)) {
 				// Drawn: a caret stop on each side, so only a column strictly inside moves.
 				from = range.startColumn + 1;
 				to = range.endColumn - 1;
@@ -261,10 +264,9 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 
 /**
  * Where a line break or whitespace typed at a concealed range's caret stop goes: past the range,
- * outside the construct it belongs to. With a declared `cursorStop` that is the far end. An
- * anchored range is line metadata: a line break goes in front of the whole line at a line-start
- * range and behind a line-end one, and whitespace is indentation, in front of a line-start range
- * and left at a line-end one.
+ * outside the text it belongs to. At line metadata a line break goes in front of the whole line
+ * for a line-start range and behind a line-end one, and whitespace is indentation, in front of a
+ * line-start range and left at a line-end one.
  */
 export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', position: Position, model: object, enabled: boolean): Position {
 	if (!enabled || !isConcealAwareModel(model)) {
@@ -276,19 +278,18 @@ export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', p
 	for (let moved = true; moved;) {
 		moved = false;
 		for (const concealed of model.getLineConcealedText(position.lineNumber)) {
-			const anchor = concealed.options.anchor;
+			const anchor = concealed.options.anchor ?? ConcealedTextAnchor.Auto;
 			if (anchor === ConcealedTextAnchor.LineStart && column === concealed.endColumn) {
 				column = concealed.startColumn;
 				lineStart = moved = true;
 			} else if (anchor === ConcealedTextAnchor.LineEnd && edit === 'lineBreak' && column === concealed.startColumn) {
 				column = concealed.endColumn;
 				moved = true;
-			} else if (anchor === undefined && !(concealed.options.replacement && concealed.options.replacement.content.length > 0)) {
-				const cursorStop = concealed.options.cursorStop ?? ConcealedTextCursorStop.Auto;
-				if (cursorStop === ConcealedTextCursorStop.After && column === concealed.endColumn) {
+			} else if (!hasReplacement(concealed.options)) {
+				if (anchor === ConcealedTextAnchor.After && column === concealed.endColumn) {
 					column = concealed.startColumn;
 					moved = true;
-				} else if (cursorStop === ConcealedTextCursorStop.Before && column === concealed.startColumn) {
+				} else if (anchor === ConcealedTextAnchor.Before && column === concealed.startColumn) {
 					column = concealed.endColumn;
 					moved = true;
 				}

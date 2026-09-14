@@ -14,7 +14,7 @@ import { URI } from '../../../base/common/uri.js';
 import { ICodeEditor, IDiffEditor } from '../editorBrowser.js';
 import { ICodeEditorOpenHandler, ICodeEditorService } from './codeEditorService.js';
 import { IContentDecorationRenderOptions, IDecorationInstanceRenderOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions, isThemeColor } from '../../common/editorCommon.js';
-import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextDeletionPolicy, ConcealedTextOptions, IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
 import { IResourceEditorInput } from '../../../platform/editor/common/editor.js';
 import { IColorTheme, IThemeService } from '../../../platform/theme/common/themeService.js';
 import { ThemeColor } from '../../../base/common/themables.js';
@@ -548,17 +548,16 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 		}
 
 		if (providerArgs.options.conceal) {
-			const cursorStop = providerArgs.options.conceal.cursorStop === 'before' ? ConcealedTextCursorStop.Before
-				: providerArgs.options.conceal.cursorStop === 'after' ? ConcealedTextCursorStop.After
-					: ConcealedTextCursorStop.Auto;
+			const anchor = providerArgs.options.conceal.anchor === 'before' ? ConcealedTextAnchor.Before
+				: providerArgs.options.conceal.anchor === 'after' ? ConcealedTextAnchor.After
+					: providerArgs.options.conceal.anchor === 'lineStart' ? ConcealedTextAnchor.LineStart
+						: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
+							: ConcealedTextAnchor.Auto;
 			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'passthrough' ? ConcealedTextDeletionPolicy.Passthrough
 				: providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
 					: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
 						: ConcealedTextDeletionPolicy.Atomic;
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
-			const anchor = providerArgs.options.conceal.anchor === 'lineStart' ? ConcealedTextAnchor.LineStart
-				: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
-					: undefined;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
 			if (replacement && replacement.contentText) {
@@ -570,13 +569,12 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 						inlineClassNameAffectsLetterSpacing: replacementInlineData?.hasLetterSpacing
 					},
 					preserveWidth,
-					cursorStop,
+					anchor,
 					deletionPolicy,
-					revealOnEdit,
-					anchor
+					revealOnEdit
 				};
 			} else {
-				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit, anchor };
+				this.concealedText = { anchor, deletionPolicy, revealOnEdit };
 			}
 		}
 
