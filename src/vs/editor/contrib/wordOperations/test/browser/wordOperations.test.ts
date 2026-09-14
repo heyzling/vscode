@@ -622,19 +622,6 @@ suite('WordOperations', () => {
 		});
 	});
 
-	test('deleteWordLeft under passthrough takes hidden characters as a word', () => {
-		withTestCodeEditor(['x \\gamma y'], {}, (editor, _) => {
-			const model = editor.getModel()!;
-			model.deltaDecorations([], [{
-				range: new Range(1, 3, 1, 9),
-				options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' }, deletionPolicy: ConcealedTextDeletionPolicy.Passthrough } }
-			}]);
-			editor.setPosition(new Position(1, 9));
-			deleteWordLeft(editor);
-			assert.strictEqual(model.getLineContent(1), 'x \\ y', 'the hidden word goes, its leading backslash stays');
-		});
-	});
-
 	test('deleteWordLeft under reveal shows the hidden text and takes nothing', () => {
 		withTestCodeEditor(['x \\gamma y'], {}, (editor, _) => {
 			const model = editor.getModel()!;

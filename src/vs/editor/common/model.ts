@@ -459,11 +459,6 @@ export enum ConcealedTextDeletionPolicy {
 	 */
 	Atomic,
 	/**
-	 * The keys act on the hidden characters as if they were visible. Only meaningful with a
-	 * replacement; with nothing drawn this acts as {@link Atomic}.
-	 */
-	Passthrough,
-	/**
 	 * Deletion never reaches the concealed text: the keys step over the range.
 	 */
 	Protect,

@@ -66,14 +66,11 @@ declare module 'vscode' {
 		 * What Backspace, Delete and word-delete do at a concealed range.
 		 *
 		 * - `atomic` (default): the whole range is deleted, as one undo step.
-		 * - `passthrough`: the keys act on the hidden characters as if they were visible. It needs
-		 *   a cursor stop at each end, so with nothing drawn, or under `lineStart` and `lineEnd`,
-		 *   it acts as `atomic`.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
 		 * - `reveal`: deletion only reveals the range and deletes nothing. A revealed range is ordinary
 		 * text, so the next press acts on characters that can be seen.
 		 */
-		deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
+		deletionPolicy?: 'atomic' | 'protect' | 'reveal';
 
 		/**
 		 * Whether an edit inside a concealed range reveals it. Defaults to `true`.

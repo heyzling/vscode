@@ -6891,35 +6891,6 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('passthrough: the delete keys act on the hidden characters as if they were visible', () => {
-		const withGamma = (callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void) => {
-			withConcealedRange('x \\gamma y', new Range(1, 3, 1, 9), {
-				replacement: { content: 'γ' },
-				deletionPolicy: ConcealedTextDeletionPolicy.Passthrough,
-			}, {}, callback);
-		};
-
-		withGamma((editor, viewModel) => {
-			moveTo(editor, viewModel, 1, 9);
-			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'x \\gamm y', 'Backspace behind the replacement takes one hidden character');
-		});
-
-		withGamma((editor, viewModel) => {
-			moveTo(editor, viewModel, 1, 3);
-			editor.runCommand(CoreEditingCommands.DeleteRight, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'x gamma y', 'Delete in front of the replacement takes one hidden character');
-		});
-	});
-
-	test('passthrough with nothing drawn acts as atomic', () => {
-		withConcealedRange(ID_LINE, ID, { deletionPolicy: ConcealedTextDeletionPolicy.Passthrough }, {}, (editor, viewModel) => {
-			moveTo(editor, viewModel, 1, 9);
-			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'note text');
-		});
-	});
-
 	test('reveal: the delete keys show the range and take nothing, then act on the text they showed', () => {
 		const withCall = (callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void) => {
 			withConcealedRange('a t("k") z', new Range(1, 3, 1, 9), {
@@ -6993,11 +6964,13 @@ suite('Editor Controller - Concealed Text', () => {
 	test('a range revealed by an edit stays revealed while the caret is at it', () => {
 		withTestCodeEditor('x \\gamma y', {}, (editor, viewModel) => {
 			const model = editor.getModel()!;
-			const decoration = (range: Range) => ({ range, options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' }, deletionPolicy: ConcealedTextDeletionPolicy.Passthrough } } });
+			const decoration = (range: Range) => ({ range, options: { description: 'test-conceal', concealedText: { replacement: { content: 'γ' } } } });
 			let ids = model.deltaDecorations([], [decoration(new Range(1, 3, 1, 9))]);
 			moveTo(editor, viewModel, 1, 9);
-			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			// An owner's own edit under the range, not a key: the caret follows to the new end.
+			model.applyEdits([{ range: new Range(1, 8, 1, 9), text: '' }]);
 			assert.strictEqual(model.getLineContent(1), 'x \\gamm y');
+			assert.deepStrictEqual(editor.getPosition(), new Position(1, 8));
 			ids = model.deltaDecorations(ids, [decoration(new Range(1, 3, 1, 8))]);
 			assert.strictEqual(model.getLineConcealedText(1).length, 0, 'applied again with the caret at its end: still revealed');
 			moveTo(editor, viewModel, 1, 1);

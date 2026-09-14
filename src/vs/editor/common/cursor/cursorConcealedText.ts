@@ -92,20 +92,14 @@ export function expandOverConcealedText(range: Range, model: object, enabled: bo
 
 /**
  * Where one end of a delete lands when it falls inside a concealed range: an atomic range is
- * covered whole, a passthrough range with a replacement keeps the end, a protected range pushes
- * it back to the boundary. Passthrough with nothing drawn is atomic.
+ * covered whole, a protected range pushes it back to the boundary.
  */
 function deleteBoundaryOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number, forward: boolean, direction: 'left' | 'right' | undefined): number {
 	for (const concealed of model.getLineConcealedText(lineNumber)) {
 		if (!(column > concealed.startColumn && column < concealed.endColumn)) {
 			continue;
 		}
-		const policy = concealed.options.deletionPolicy ?? ConcealedTextDeletionPolicy.Atomic;
-		// Passthrough needs a caret stop at each end; line metadata has one.
-		if (policy === ConcealedTextDeletionPolicy.Passthrough && hasReplacement(concealed.options) && !isLineAnchored(concealed.options)) {
-			return column;
-		}
-		if (policy === ConcealedTextDeletionPolicy.Protect && direction !== undefined) {
+		if (concealed.options.deletionPolicy === ConcealedTextDeletionPolicy.Protect && direction !== undefined) {
 			return forward ? concealed.startColumn : concealed.endColumn;
 		}
 		return forward ? concealed.endColumn : concealed.startColumn;

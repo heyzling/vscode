@@ -678,7 +678,7 @@ export interface IConcealDecorationRenderOptions {
 	replacement?: IContentDecorationRenderOptions;
 	preserveWidth?: boolean;
 	anchor?: 'before' | 'after' | 'lineStart' | 'lineEnd';
-	deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
+	deletionPolicy?: 'atomic' | 'protect' | 'reveal';
 	revealOnEdit?: boolean;
 }
 

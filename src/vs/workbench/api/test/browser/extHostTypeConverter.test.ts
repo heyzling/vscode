@@ -189,7 +189,7 @@ suite('ExtHostTypeConverter', function () {
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'auto' }).anchor, undefined, 'the default is left unsaid');
 
 		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'protect' }).deletionPolicy, 'protect');
-		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'passthrough' }).deletionPolicy, 'passthrough');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'reveal' }).deletionPolicy, 'reveal');
 		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'atomic' }).deletionPolicy, undefined, 'the default is left unsaid');
 		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: false }).revealOnEdit, false);
 		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: true }).revealOnEdit, undefined, 'the default is left unsaid');

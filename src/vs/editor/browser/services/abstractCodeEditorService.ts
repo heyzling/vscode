@@ -553,10 +553,9 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					: providerArgs.options.conceal.anchor === 'lineStart' ? ConcealedTextAnchor.LineStart
 						: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
 							: ConcealedTextAnchor.Auto;
-			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'passthrough' ? ConcealedTextDeletionPolicy.Passthrough
-				: providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
-					: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
-						: ConcealedTextDeletionPolicy.Atomic;
+			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
+				: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
+					: ConcealedTextDeletionPolicy.Atomic;
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;

@@ -569,7 +569,7 @@ export namespace ThemableDecorationRenderOptions {
 export namespace ConcealRenderOptions {
 	export function from(options: vscode.ConcealRenderOptions): IConcealDecorationRenderOptions {
 		const anchor = options.anchor === 'before' || options.anchor === 'after' || options.anchor === 'lineStart' || options.anchor === 'lineEnd' ? options.anchor : undefined;
-		const deletionPolicy = options.deletionPolicy === 'passthrough' || options.deletionPolicy === 'protect' || options.deletionPolicy === 'reveal' ? options.deletionPolicy : undefined;
+		const deletionPolicy = options.deletionPolicy === 'protect' || options.deletionPolicy === 'reveal' ? options.deletionPolicy : undefined;
 		const revealOnEdit = options.revealOnEdit === false ? false : undefined;
 		if (!options.replacement) {
 			return { anchor, deletionPolicy, revealOnEdit };
