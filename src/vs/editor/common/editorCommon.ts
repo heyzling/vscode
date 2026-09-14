@@ -680,6 +680,7 @@ export interface IConcealDecorationRenderOptions {
 	cursorStop?: 'before' | 'after';
 	deletionPolicy?: 'atomic' | 'passthrough' | 'protect' | 'reveal';
 	revealOnEdit?: boolean;
+	anchor?: 'lineStart' | 'lineEnd';
 }
 
 /**

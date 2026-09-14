@@ -11,7 +11,7 @@ import { WrappingIndent } from './config/editorOptions.js';
 import { FontInfo } from './config/fontInfo.js';
 import { Position } from './core/position.js';
 import { OffsetRange } from './core/ranges/offsetRange.js';
-import { ConcealedTextCursorStop, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
+import { ConcealedTextAnchor, ConcealedTextCursorStop, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
 import { LineConcealedText, LineInjectedText } from './textModelEvents.js';
 import { LineTokens, TokenArray, TokenInfo } from './tokens/lineTokens.js';
 
@@ -617,8 +617,15 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 				: replacement);
 		}
 
-		// A range with a replacement has a side per end; it carries `After` and the stop never fires.
-		concealStops.push(hasReplacement ? ConcealedTextCursorStop.After : (concealedText.options.cursorStop ?? ConcealedTextCursorStop.Auto));
+		// An anchored range has one stop, on the side of its text, drawn or not. Any other range
+		// with a replacement has a side per end; it carries `After` and the stop never fires.
+		const anchor = concealedText.options.anchor;
+		concealStops.push(
+			anchor === ConcealedTextAnchor.LineStart ? ConcealedTextCursorStop.After
+				: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextCursorStop.Before
+					: hasReplacement ? ConcealedTextCursorStop.After
+						: (concealedText.options.cursorStop ?? ConcealedTextCursorStop.Auto)
+		);
 	}
 
 	for (; injectionIndex < injections.length; injectionIndex++) {

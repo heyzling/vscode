@@ -24,6 +24,7 @@ import { createScopedLineTokens } from '../languages/supports.js';
 import { getIndentActionForType, getIndentForEnter, getInheritIndentForLine } from '../languages/autoIndent.js';
 import { getEnterAction } from '../languages/enterAction.js';
 import { CompositionOutcome } from './cursorTypeOperations.js';
+import { positionOutsideAnchoredConcealedText } from './cursorConcealedText.js';
 
 export class AutoIndentOperation {
 
@@ -521,7 +522,7 @@ export class EnterOperation {
 		if (!isDoingComposition && ch === '\n') {
 			const commands: ICommand[] = [];
 			for (let i = 0, len = selections.length; i < len; i++) {
-				commands[i] = this._enter(config, model, false, selections[i]);
+				commands[i] = this._enterOutsideAnchoredConcealedText(config, model, false, selections[i]);
 			}
 			return new EditOperationResult(EditOperationType.TypingOther, commands, {
 				shouldPushStackElementBefore: true,
@@ -529,6 +530,25 @@ export class EnterOperation {
 			});
 		}
 		return;
+	}
+
+	/**
+	 * A line break at an anchored concealed range's caret stop goes past the range. In front of
+	 * a line-start range the whole line moves down and the caret stays at the stop.
+	 */
+	private static _enterOutsideAnchoredConcealedText(config: CursorConfiguration, model: ITextModel, keepPosition: boolean, range: Range): ICommand {
+		if (!range.isEmpty()) {
+			return this._enter(config, model, keepPosition, range);
+		}
+		const position = range.getStartPosition();
+		const breakPosition = positionOutsideAnchoredConcealedText(position, model, config.concealedText, 'lineBreak');
+		if (breakPosition.equals(position)) {
+			return this._enter(config, model, keepPosition, range);
+		}
+		if (breakPosition.isBefore(position)) {
+			return new ReplaceCommandWithOffsetCursorState(Range.fromPositions(breakPosition), '\n', 0, position.column - 1);
+		}
+		return this._enter(config, model, keepPosition, Range.fromPositions(breakPosition));
 	}
 
 	private static _enter(config: CursorConfiguration, model: ITextModel, keepPosition: boolean, range: Range): ICommand {
@@ -645,7 +665,7 @@ export class EnterOperation {
 	public static lineBreakInsert(config: CursorConfiguration, model: ITextModel, selections: Selection[]): ICommand[] {
 		const commands: ICommand[] = [];
 		for (let i = 0, len = selections.length; i < len; i++) {
-			commands[i] = this._enter(config, model, true, selections[i]);
+			commands[i] = this._enterOutsideAnchoredConcealedText(config, model, true, selections[i]);
 		}
 		return commands;
 	}
@@ -715,10 +735,15 @@ export class PasteOperation {
 			if (pasteOnNewLine && text.indexOf('\n') !== text.length - 1) {
 				pasteOnNewLine = false;
 			}
+			const breakPosition = selection.isEmpty() && text.indexOf('\n') !== -1
+				? positionOutsideAnchoredConcealedText(position, model, config.concealedText, 'lineBreak')
+				: position;
 			if (pasteOnNewLine) {
 				// Paste entire line at the beginning of line
 				const typeSelection = new Range(position.lineNumber, 1, position.lineNumber, 1);
 				commands[i] = new ReplaceCommandThatPreservesSelection(typeSelection, text, selection, true);
+			} else if (!breakPosition.equals(position)) {
+				commands[i] = SplitPasteCommand.around(position, breakPosition, text);
 			} else {
 				const shouldOvertypeOnPaste = config.overtypeOnPaste && config.inputMode === 'overtype';
 				const ChosenReplaceCommand = shouldOvertypeOnPaste ? ReplaceOvertypeCommand : ReplaceCommand;
@@ -772,13 +797,61 @@ export class TypeWithoutInterceptorsOperation {
 	}
 }
 
+/**
+ * A paste at an anchored concealed range's caret stop: the part that stays on the range's line
+ * goes at the caret, the rest past the range, and the caret ends after the later part.
+ */
+class SplitPasteCommand implements ICommand {
+
+	public static around(position: Position, breakPosition: Position, text: string): ICommand {
+		let first: [Position, string];
+		let second: [Position, string];
+		if (breakPosition.isBefore(position)) {
+			// A line-start range: the last line of the paste joins the range's text, the rest goes above the line.
+			const at = text.lastIndexOf('\n') + 1;
+			first = [breakPosition, text.substring(0, at)];
+			second = [position, text.substring(at)];
+		} else {
+			// A line-end range: the first line of the paste stays in front of the range.
+			let at = text.indexOf('\n');
+			if (at > 0 && text.charCodeAt(at - 1) === CharCode.CarriageReturn) {
+				at--;
+			}
+			first = [position, text.substring(0, at)];
+			second = [breakPosition, text.substring(at)];
+		}
+		if (first[1].length === 0 || second[1].length === 0) {
+			return new ReplaceCommand(Range.fromPositions(breakPosition), text);
+		}
+		return new SplitPasteCommand(first[0], first[1], second[0], second[1]);
+	}
+
+	private constructor(
+		private readonly _firstPosition: Position,
+		private readonly _firstText: string,
+		private readonly _secondPosition: Position,
+		private readonly _secondText: string
+	) { }
+
+	public getEditOperations(model: ITextModel, builder: IEditOperationBuilder): void {
+		builder.addTrackedEditOperation(Range.fromPositions(this._firstPosition), this._firstText);
+		builder.addTrackedEditOperation(Range.fromPositions(this._secondPosition), this._secondText);
+	}
+
+	public computeCursorState(model: ITextModel, helper: ICursorStateComputerData): Selection {
+		const inverseEditOperations = helper.getInverseEditOperations();
+		return Selection.fromPositions(inverseEditOperations[1].range.getEndPosition());
+	}
+}
+
 export class TabOperation {
 
 	public static getCommands(config: CursorConfiguration, model: ITextModel, selections: Selection[]) {
 		const commands: ICommand[] = [];
 		for (let i = 0, len = selections.length; i < len; i++) {
-			const selection = selections[i];
+			let selection = selections[i];
 			if (selection.isEmpty()) {
+				selection = Selection.fromPositions(positionOutsideAnchoredConcealedText(selection.getPosition(), model, config.concealedText, 'whitespace'));
 				const lineText = model.getLineContent(selection.startLineNumber);
 				if (/^\s*$/.test(lineText) && model.tokenization.isCheapToTokenize(selection.startLineNumber)) {
 					let goodIndent = this._goodIndentForLine(config, model, selection.startLineNumber);

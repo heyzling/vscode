@@ -8,7 +8,7 @@ import * as platform from '../../../../base/common/platform.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { IDecorationRenderOptions } from '../../../common/editorCommon.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy } from '../../../common/model.js';
 import { TestCodeEditorService, TestGlobalStyleSheet } from '../editorTestServices.js';
 import { TestColorTheme, TestThemeService } from '../../../../platform/theme/test/common/testThemeService.js';
 
@@ -51,6 +51,13 @@ suite('Decoration Render Options', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));
 		store.add(s.registerDecorationType('test', 'conceal-reveal', { conceal: { deletionPolicy: 'reveal' } }));
 		assert.strictEqual(s.resolveDecorationOptions('conceal-reveal', false).concealedText?.deletionPolicy, ConcealedTextDeletionPolicy.Reveal);
+	});
+	test('a conceal anchor reaches the model, with or without a replacement', () => {
+		const s = store.add(new TestCodeEditorService(themeServiceMock));
+		store.add(s.registerDecorationType('test', 'conceal-anchor-start', { conceal: { anchor: 'lineStart' } }));
+		store.add(s.registerDecorationType('test', 'conceal-anchor-end', { conceal: { anchor: 'lineEnd', replacement: { contentText: 'id' } } }));
+		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-start', false).concealedText?.anchor, ConcealedTextAnchor.LineStart);
+		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-end', false).concealedText?.anchor, ConcealedTextAnchor.LineEnd);
 	});
 
 	test('per-range conceal replacements at scale keep subtype registration bounded', () => {

@@ -412,6 +412,31 @@ export interface ConcealedTextOptions {
 	 * is applied again. Defaults to true.
 	 */
 	readonly revealOnEdit?: boolean;
+
+	/**
+	 * If set, the range is metadata of its line that leans to one end of the line's text, and
+	 * ordinary editing keeps it there. {@link cursorStop} is not read.
+	 */
+	readonly anchor?: ConcealedTextAnchor;
+}
+
+/**
+ * Which end of its line a concealed range leans to. The range has one caret stop, on the side
+ * of the text it belongs to, drawn or not.
+ * @internal
+ */
+export enum ConcealedTextAnchor {
+	/**
+	 * The start of the text: typed characters land after the range. Whitespace typed at the stop
+	 * lands before it, and a line break in front of the whole line, so the range keeps the first
+	 * column of its text.
+	 */
+	LineStart,
+	/**
+	 * The end of the line: typed characters land before the range. A line break typed at the
+	 * stop lands after it, so the range stays on its line.
+	 */
+	LineEnd,
 }
 
 /**

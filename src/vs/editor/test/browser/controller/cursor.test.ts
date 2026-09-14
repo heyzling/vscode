@@ -21,7 +21,7 @@ import { ILanguageService } from '../../../common/languages/language.js';
 import { IndentAction, IndentationRule } from '../../../common/languages/languageConfiguration.js';
 import { ILanguageConfigurationService } from '../../../common/languages/languageConfigurationRegistry.js';
 import { NullState } from '../../../common/languages/nullTokenize.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, EndOfLinePreference, EndOfLineSequence, ITextModel, TrackedRangeStickiness } from '../../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, EndOfLinePreference, EndOfLineSequence, ITextModel, TrackedRangeStickiness } from '../../../common/model.js';
 import { TextModel } from '../../../common/model/textModel.js';
 import { ViewModel } from '../../../common/viewModel/viewModelImpl.js';
 import { OutgoingViewModelEventKind } from '../../../common/viewModelEventDispatcher.js';
@@ -7102,6 +7102,113 @@ suite('Editor Controller - Concealed Text', () => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
 			viewModel.type('\n', 'keyboard');
 			assert.strictEqual(editor.getModel()!.getValue(), '\n^ab12cd note text', 'and the id moves down with the text it belongs to');
+		});
+	});
+
+	test('anchored to the line start: text lands behind the range, a line break or indentation in front of it', () => {
+		const anchored: ConcealedTextOptions = { anchor: ConcealedTextAnchor.LineStart, deletionPolicy: ConcealedTextDeletionPolicy.Protect };
+
+		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 9), 'the one stop is behind the id');
+			assert.deepStrictEqual(viewModel.coordinatesConverter.convertViewPositionToModelPosition(new Position(1, 1)), new Position(1, 9), 'a click at the line start lands there too');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text', 'typed text goes behind the id');
+			assert.deepStrictEqual(editor.getModel()!.getLineConcealedText(1).map(c => [c.startColumn, c.endColumn]), [[1, 9]], 'and stays visible');
+		});
+
+		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '\n^ab12cd note text', 'a line break opens a line above: the id stays with its text');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 9));
+		});
+
+		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			editor.runCommand(CoreEditingCommands.Tab, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '   ^ab12cd note text', 'an indent goes in front of the id');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 12));
+			viewModel.type(' ', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '    ^ab12cd note text', 'so does typed whitespace');
+			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '   ^ab12cd note text', 'and Backspace takes it back over the protected id');
+		});
+
+		withConcealedRange('   ^ab12cd note', new Range(1, 4, 1, 12), anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '\n   ^ab12cd note', 'an indented line moves down whole, indentation first');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 12), 'with the caret still at the stop');
+		});
+
+		withConcealedRange('- ^ab12cd item', new Range(1, 3, 1, 11), anchored, {}, (editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 3);
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '\n- ^ab12cd item', 'a list item keeps its bullet in front of the id');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 11));
+			viewModel.paste('abc\ndef', false);
+			assert.strictEqual(editor.getModel()!.getValue(), '\nabc\n- ^ab12cd defitem', 'a paste goes above the line but for its last line');
+		});
+
+		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			viewModel.paste('abc\ndef', false);
+			assert.strictEqual(editor.getModel()!.getValue(), 'abc\n^ab12cd defnote text', 'a paste is split: its last line joins the id\'s text');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 12));
+		});
+	});
+
+	test('anchored to the line end: text lands in front of the range, a line break behind it', () => {
+		// ` ^ab12cd` at columns 10..18, nothing drawn.
+		const line = 'note text ^ab12cd';
+		const id = new Range(1, 10, 1, 18);
+		const anchored: ConcealedTextOptions = { anchor: ConcealedTextAnchor.LineEnd, deletionPolicy: ConcealedTextDeletionPolicy.Protect };
+
+		withConcealedRange(line, id, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorEnd.runCoreEditorCommand(viewModel, {});
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 10), 'the one stop is in front of the id');
+			moveRight(editor, viewModel);
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 10), 'and there is no place behind it');
+			assert.deepStrictEqual(viewModel.coordinatesConverter.convertViewPositionToModelPosition(new Position(1, 10)), new Position(1, 10), 'a click at the line end lands in front too');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'note textX ^ab12cd', 'typed text goes in front of the id');
+			editor.runCommand(CoreEditingCommands.Tab, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'note textX   ^ab12cd', 'so does an indent');
+		});
+
+		withConcealedRange(line, id, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorEnd.runCoreEditorCommand(viewModel, {});
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), 'note text ^ab12cd\n', 'a line break leaves the id on its line');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 1));
+		});
+
+		withConcealedRange(line, id, anchored, {}, (editor, viewModel) => {
+			CoreNavigationCommands.CursorEnd.runCoreEditorCommand(viewModel, {});
+			viewModel.paste('abc\r\ndef', false);
+			assert.strictEqual(editor.getModel()!.getValue(), 'note textabc ^ab12cd\ndef', 'a paste is split: its first line stays in front of the id');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 4));
+		});
+	});
+
+	test('an anchored range has one stop with a replacement too, and cursorStop is not read', () => {
+		withConcealedRange(ID_LINE, ID, { replacement: { content: '#' }, anchor: ConcealedTextAnchor.LineStart, cursorStop: ConcealedTextCursorStop.Before }, {}, (editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 1);
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 9), 'a caret aimed in front of the replacement lands behind it');
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '\n^ab12cd note text', 'a line break still goes in front of the range');
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), '\n^ab12cd Xnote text', 'and typed text behind it');
+		});
+	});
+
+	test('a concealed decoration never grows when typing at its edges unless told to', () => {
+		withHiddenId(ID_LINE, ID, ConcealedTextCursorStop.After, (editor, viewModel) => {
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			viewModel.type('X', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text');
+			assert.deepStrictEqual(editor.getModel()!.getLineConcealedText(1).map(c => [c.startColumn, c.endColumn]), [[1, 9]]);
 		});
 	});
 

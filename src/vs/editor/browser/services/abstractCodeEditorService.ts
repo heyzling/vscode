@@ -14,7 +14,7 @@ import { URI } from '../../../base/common/uri.js';
 import { ICodeEditor, IDiffEditor } from '../editorBrowser.js';
 import { ICodeEditorOpenHandler, ICodeEditorService } from './codeEditorService.js';
 import { IContentDecorationRenderOptions, IDecorationInstanceRenderOptions, IDecorationRenderOptions, IThemeDecorationRenderOptions, isThemeColor } from '../../common/editorCommon.js';
-import { ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
+import { ConcealedTextAnchor, ConcealedTextCursorStop, ConcealedTextDeletionPolicy, ConcealedTextOptions, IModelDecorationOptions, IModelDecorationOverviewRulerOptions, InjectedTextOptions, ITextModel, OverviewRulerLane, TrackedRangeStickiness } from '../../common/model.js';
 import { IResourceEditorInput } from '../../../platform/editor/common/editor.js';
 import { IColorTheme, IThemeService } from '../../../platform/theme/common/themeService.js';
 import { ThemeColor } from '../../../base/common/themables.js';
@@ -556,6 +556,9 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
 						: ConcealedTextDeletionPolicy.Atomic;
 			const revealOnEdit = providerArgs.options.conceal.revealOnEdit !== false;
+			const anchor = providerArgs.options.conceal.anchor === 'lineStart' ? ConcealedTextAnchor.LineStart
+				: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
+					: undefined;
 			const replacement = providerArgs.options.conceal.replacement;
 			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
 			if (replacement && replacement.contentText) {
@@ -569,10 +572,11 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 					preserveWidth,
 					cursorStop,
 					deletionPolicy,
-					revealOnEdit
+					revealOnEdit,
+					anchor
 				};
 			} else {
-				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit };
+				this.concealedText = { cursorStop, deletionPolicy, revealOnEdit, anchor };
 			}
 		}
 

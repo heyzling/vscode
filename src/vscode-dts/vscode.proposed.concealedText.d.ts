@@ -16,6 +16,8 @@ declare module 'vscode' {
 		 * Conceal the decorated ranges: their text is left out of the rendered view while the
 		 * document keeps it. Concealed text holds no cursor positions and is still saved,
 		 * searched and copied. Only ranges within a single line are concealed.
+		 *
+		 * Unless `rangeBehavior` is set, the ranges never grow when typing at their edges.
 		 */
 		conceal?: ConcealRenderOptions;
 	}
@@ -70,6 +72,22 @@ declare module 'vscode' {
 		 * by an edit also stays revealed until the decoration is applied again.
 		 */
 		revealOnEdit?: boolean;
+
+		/**
+		 * Which end of its line the concealed range leans to, for metadata that must keep its
+		 * place there. An anchored range has one caret stop, on the side of the text it belongs
+		 * to, drawn or not; `cursorStop` is not read.
+		 *
+		 * - `lineStart`: typed characters land after the range. Whitespace typed at the stop lands
+		 *   before it, and a line break in front of the whole line, which moves down with the
+		 *   caret still at the stop. The range keeps the first column of its text.
+		 * - `lineEnd`: typed characters land before the range. A line break typed at the stop
+		 *   lands after it, so the range stays on its line.
+		 *
+		 * A paste at the stop is split the same way at its line breaks. A join of two lines does
+		 * not move the range. `deletionPolicy: 'protect'` keeps the delete keys off it.
+		 */
+		anchor?: 'lineStart' | 'lineEnd';
 	}
 
 	export interface DecorationInstanceRenderOptions {

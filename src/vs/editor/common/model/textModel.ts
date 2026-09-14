@@ -2618,6 +2618,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
 	readonly revealOnEdit: boolean;
+	readonly anchor: model.ConcealedTextAnchor | undefined;
 
 	private constructor(options: model.ConcealedTextOptions) {
 		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
@@ -2625,6 +2626,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
 		this.revealOnEdit = options.revealOnEdit ?? true;
+		this.anchor = options.anchor;
 	}
 }
 
@@ -2683,7 +2685,8 @@ export class ModelDecorationOptions implements model.IModelDecorationOptions {
 		this.blockDoesNotCollapse = options.blockDoesNotCollapse ?? null;
 		this.blockIsAfterEnd = options.blockIsAfterEnd ?? null;
 		this.blockPadding = options.blockPadding ?? null;
-		this.stickiness = options.stickiness || model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges;
+		// Text typed beside a concealed range must not join it.
+		this.stickiness = options.stickiness || (options.concealedText ? model.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges : model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
 		this.zIndex = options.zIndex || 0;
 		this.className = options.className ? cleanClassName(options.className) : null;
 		this.shouldFillLineOnLineBreak = options.shouldFillLineOnLineBreak ?? null;

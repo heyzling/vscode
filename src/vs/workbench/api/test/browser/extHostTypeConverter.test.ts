@@ -193,6 +193,10 @@ suite('ExtHostTypeConverter', function () {
 		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'atomic' }).deletionPolicy, undefined, 'the default is left unsaid');
 		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: false }).revealOnEdit, false);
 		assert.strictEqual(ConcealRenderOptions.from({ revealOnEdit: true }).revealOnEdit, undefined, 'the default is left unsaid');
+
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineStart' }).anchor, 'lineStart');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineEnd', replacement: { contentText: 'id' } }).anchor, 'lineEnd', 'an anchor survives beside a replacement');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'middle' as never }).anchor, undefined, 'an unknown value is dropped');
 	});
 
 	test('ThemableDecorationAttachmentRenderOptions - attachment styling reaches the render options', function () {
