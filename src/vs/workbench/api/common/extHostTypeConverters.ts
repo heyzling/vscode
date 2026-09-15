@@ -604,7 +604,7 @@ export namespace DecorationRenderOptions {
 	export function from(options: vscode.DecorationRenderOptions): IDecorationRenderOptions {
 		return {
 			isWholeLine: options.isWholeLine,
-			rangeBehavior: options.rangeBehavior ? DecorationRangeBehavior.from(options.rangeBehavior) : undefined,
+			rangeBehavior: typeof options.rangeBehavior === 'number' ? DecorationRangeBehavior.from(options.rangeBehavior) : undefined,
 			overviewRulerLane: options.overviewRulerLane,
 			light: options.light ? ThemableDecorationRenderOptions.from(options.light) : undefined,
 			dark: options.dark ? ThemableDecorationRenderOptions.from(options.dark) : undefined,

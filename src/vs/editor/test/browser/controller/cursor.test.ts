@@ -7225,6 +7225,16 @@ suite('Editor Controller - Concealed Text', () => {
 			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd Xnote text');
 			assert.deepStrictEqual(editor.getModel()!.getLineConcealedText(1).map(c => [c.startColumn, c.endColumn]), [[1, 9]]);
 		});
+
+		withTestCodeEditor(ID_LINE, {}, (editor, viewModel) => {
+			editor.getModel()!.deltaDecorations([], [{
+				range: ID,
+				options: { description: 'test-conceal', stickiness: TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges, concealedText: { anchor: ConcealedTextAnchor.After } }
+			}]);
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			viewModel.type('X', 'keyboard');
+			assert.deepStrictEqual(editor.getModel()!.getLineConcealedText(1).map(c => [c.startColumn, c.endColumn]), [[1, 10]], 'an explicit always-grows stickiness is kept, zero as it is');
+		});
 	});
 
 	test('with nothing drawn, anchor decides which side a selection stops at', () => {

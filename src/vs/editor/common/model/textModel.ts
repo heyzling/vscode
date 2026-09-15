@@ -2643,7 +2643,7 @@ export class ModelDecorationOptions implements model.IModelDecorationOptions {
 		this.blockIsAfterEnd = options.blockIsAfterEnd ?? null;
 		this.blockPadding = options.blockPadding ?? null;
 		// Text typed beside a concealed range must not join it.
-		this.stickiness = options.stickiness || (options.concealedText ? model.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges : model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
+		this.stickiness = options.stickiness ?? (options.concealedText ? model.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges : model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
 		this.zIndex = options.zIndex || 0;
 		this.className = options.className ? cleanClassName(options.className) : null;
 		this.shouldFillLineOnLineBreak = options.shouldFillLineOnLineBreak ?? null;

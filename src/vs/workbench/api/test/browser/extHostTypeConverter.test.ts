@@ -6,12 +6,13 @@
 
 import assert from 'assert';
 import * as extHostTypes from '../../common/extHostTypes.js';
-import { ChatAgentResult, ConcealRenderOptions, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, ThemableDecorationAttachmentRenderOptions, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
+import { ChatAgentResult, ConcealRenderOptions, DecorationRenderOptions, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, ThemableDecorationAttachmentRenderOptions, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
 import { isEmptyObject } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IWorkspaceTextEditDto } from '../../common/extHost.protocol.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
 import { MarshalledId } from '../../../../base/common/marshallingIds.js';
+import { TrackedRangeStickiness } from '../../../../editor/common/model.js';
 
 suite('ExtHostTypeConverter', function () {
 
@@ -195,6 +196,11 @@ suite('ExtHostTypeConverter', function () {
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineStart' }).anchor, 'lineStart');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineEnd', replacement: { contentText: 'id' } }).anchor, 'lineEnd', 'an anchor survives beside a replacement');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'middle' as never }).anchor, undefined, 'an unknown value is dropped');
+	});
+
+	test('DecorationRenderOptions - an explicit OpenOpen range behavior survives conversion', function () {
+		assert.strictEqual(DecorationRenderOptions.from({ rangeBehavior: extHostTypes.DecorationRangeBehavior.OpenOpen }).rangeBehavior, TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
+		assert.strictEqual(DecorationRenderOptions.from({}).rangeBehavior, undefined, 'unset stays unset');
 	});
 
 	test('ThemableDecorationAttachmentRenderOptions - attachment styling reaches the render options', function () {
