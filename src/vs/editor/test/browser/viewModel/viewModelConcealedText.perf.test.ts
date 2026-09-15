@@ -44,7 +44,7 @@ interface Scenario {
 	readonly name: string;
 	readonly conceal: boolean;
 	readonly wrap: boolean;
-	readonly decorations: 'none' | 'hidden ids' | 'glyphs' | 'css ids';
+	readonly decorations: 'none' | 'hidden ids' | 'glyphs' | 'injected glyphs' | 'css ids';
 }
 
 interface Result {
@@ -62,6 +62,7 @@ const scenarios: Scenario[] = [
 	{ name: 'conceal on, nothing concealed', conceal: true, wrap: false, decorations: 'none' },
 	{ name: 'conceal on, hidden id per line', conceal: true, wrap: false, decorations: 'hidden ids' },
 	{ name: 'conceal on, glyph per line', conceal: true, wrap: false, decorations: 'glyphs' },
+	{ name: 'conceal on, injected glyph per line', conceal: true, wrap: false, decorations: 'injected glyphs' },
 	{ name: 'conceal off, css-hidden id per line', conceal: false, wrap: false, decorations: 'css ids' },
 	{ name: 'wrap, conceal off', conceal: false, wrap: true, decorations: 'none' },
 	{ name: 'wrap, conceal on, nothing concealed', conceal: true, wrap: true, decorations: 'none' },
@@ -87,6 +88,9 @@ function decorationsFor(scenario: Scenario, lines: string[]): IModelDeltaDecorat
 				break;
 			case 'glyphs':
 				result.push({ range: new Range(lineNumber, tagStart, lineNumber, tagStart + 5), options: { description: 'perf', concealedText: { replacement: { content: '☐' } } } });
+				break;
+			case 'injected glyphs':
+				result.push({ range: new Range(lineNumber, tagStart, lineNumber, tagStart + 5), options: { description: 'perf', after: { content: '☐' } } });
 				break;
 			case 'css ids':
 				result.push({ range: new Range(lineNumber, idStart, lineNumber, idStart + 11), options: { description: 'perf', inlineClassName: 'hidden-id' } });
