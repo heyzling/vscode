@@ -182,9 +182,6 @@ suite('ExtHostTypeConverter', function () {
 		const long = ConcealRenderOptions.from({ replacement: { contentText: 'a' + '\u{1F3AF}'.repeat(20) } });
 		assert.strictEqual(long.replacement!.contentText, 'a' + '\u{1F3AF}'.repeat(20));
 
-		const short = ConcealRenderOptions.from({ replacement: { contentText: 'a\nb\r\nc' } });
-		assert.strictEqual(short.replacement!.contentText, 'abc', 'line feeds are dropped');
-
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Auto }).anchor, undefined, 'the default is left unsaid');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Before }).anchor, 'before');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.After }).anchor, 'after', 'auto is the default, so a declared side must survive');

@@ -2592,7 +2592,12 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
 
 	private constructor(options: model.ConcealedTextOptions) {
-		this.replacement = options.replacement ? ModelDecorationInjectedTextOptions.from(options.replacement) : null;
+		let replacement = options.replacement ?? null;
+		// A replacement is drawn on one line; the `includes` tests keep the regex off the common path.
+		if (replacement && (replacement.content.includes('\n') || replacement.content.includes('\r'))) {
+			replacement = { ...replacement, content: replacement.content.replace(/[\r\n]/g, '') };
+		}
+		this.replacement = replacement ? ModelDecorationInjectedTextOptions.from(replacement) : null;
 		this.anchor = options.anchor ?? model.ConcealedTextAnchor.Auto;
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;

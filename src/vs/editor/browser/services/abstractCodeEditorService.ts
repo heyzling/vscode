@@ -415,7 +415,7 @@ class DecorationSubTypeOptionsProvider implements IModelDecorationOptionsProvide
 		const instanceReplacement = (providerArgs.options as IDecorationInstanceRenderOptions).conceal?.replacement;
 		this._concealReplacementRules = null;
 		if (instanceReplacement && instanceReplacement.contentText) {
-			this._concealReplacementText = instanceReplacement.contentText.replace(/[\r\n]/g, '');
+			this._concealReplacementText = instanceReplacement.contentText;
 			this._concealReplacementRules = new DecorationCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName, providerArgs, themeService);
 		}
 	}

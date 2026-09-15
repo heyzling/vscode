@@ -7,8 +7,10 @@ import assert from 'assert';
 import * as platform from '../../../../base/common/platform.js';
 import { URI } from '../../../../base/common/uri.js';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
+import { Range } from '../../../common/core/range.js';
 import { IDecorationRenderOptions } from '../../../common/editorCommon.js';
 import { ConcealedTextAnchor, ConcealedTextDeletionPolicy } from '../../../common/model.js';
+import { createTextModel } from '../../common/testTextModel.js';
 import { TestCodeEditorService, TestGlobalStyleSheet } from '../editorTestServices.js';
 import { TestColorTheme, TestThemeService } from '../../../../platform/theme/test/common/testThemeService.js';
 
@@ -38,7 +40,10 @@ suite('Decoration Render Options', () => {
 		} as IDecorationRenderOptions, 'conceal-parent'));
 
 		const resolved = s.resolveDecorationOptions('conceal-parent-sub', false);
-		assert.strictEqual(resolved.concealedText?.replacement?.content, 'Place ordersecond line', 'the range draws its own string, with line feeds dropped');
+		assert.strictEqual(resolved.concealedText?.replacement?.content, 'Place order\nsecond line', 'the range draws its own string');
+		const model = store.add(createTextModel('some text'));
+		model.deltaDecorations([], [{ range: new Range(1, 1, 1, 5), options: resolved }]);
+		assert.strictEqual(model.getLineConcealedText(1)[0].options.replacement!.content, 'Place ordersecond line', 'line feeds are dropped at the model');
 		assert.strictEqual(resolved.concealedText?.anchor, ConcealedTextAnchor.Before, 'the caret stop stays the type\'s');
 		assert.strictEqual(resolved.concealedText?.deletionPolicy, ConcealedTextDeletionPolicy.Protect, 'the deletion policy stays the type\'s');
 		assert.strictEqual(resolved.concealedText?.preserveWidth, true, 'preserveWidth stays the type\'s');

@@ -590,9 +590,6 @@ export namespace ConcealRenderOptions {
 			return { anchor, deletionPolicy };
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
-		if (replacement.contentText) {
-			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
-		}
 		const preserveWidth = options.preserveWidth === true ? true : undefined;
 		return { replacement, preserveWidth, anchor, deletionPolicy };
 	}
