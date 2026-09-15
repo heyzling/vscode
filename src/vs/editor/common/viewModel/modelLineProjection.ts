@@ -101,7 +101,7 @@ class ModelLineProjection implements IModelLineProjection {
 		const endOffsetInInputWithInjections = this._projectionData.breakOffsets[outputLineIndex];
 
 		let r: string;
-		if (this._projectionData.injectionOffsets !== null || this._projectionData.concealOffsets !== null) {
+		if (this._projectionData.injectionOffsets !== null || this._projectionData.concealed !== null) {
 			const lineWithChanges = applyProjectedLineChanges(model.getLineContent(modelLineNumber), this._projectionData);
 			r = lineWithChanges.substring(startOffsetInInputWithInjections, endOffsetInInputWithInjections);
 		} else {

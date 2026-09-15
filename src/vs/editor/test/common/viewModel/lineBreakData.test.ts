@@ -5,9 +5,9 @@
 
 import assert from 'assert';
 import { ensureNoDisposablesAreLeakedInTestSuite } from '../../../../base/test/common/utils.js';
-import { PositionAffinity } from '../../../common/model.js';
+import { ConcealedTextAnchor, PositionAffinity } from '../../../common/model.js';
 import { ModelDecorationInjectedTextOptions } from '../../../common/model/textModel.js';
-import { ModelLineProjectionData } from '../../../common/modelLineProjectionData.js';
+import { ConcealedSpans, ModelLineProjectionData } from '../../../common/modelLineProjectionData.js';
 
 suite('Editor ViewModel - LineBreakData', () => {
 
@@ -232,7 +232,7 @@ suite('Editor ViewModel - LineBreakData', () => {
 
 	suite('Concealed Text (no replacement)', () => {
 		// `0123456789...`, with `34567` concealed: the view shows `012` then `89...`.
-		const data = new ModelLineProjectionData(null, null, [95, 100], [], 0, [3], [5]);
+		const data = new ModelLineProjectionData(null, null, [95, 100], [], 0, new ConcealedSpans([3], [5], [ConcealedTextAnchor.Auto]));
 
 		test('getInputOffsetOfOutputPosition', () => {
 			// Offset 3 is the place the concealed range collapsed to. It maps to the range's
@@ -256,7 +256,7 @@ suite('Editor ViewModel - LineBreakData', () => {
 	suite('Concealed Text (with replacement)', () => {
 		// The replacement is injected at the start of the concealed range, which gives the
 		// place it collapses to a left and a right side.
-		const data = new ModelLineProjectionData([3], mapTextToInjectedTextOptions(['°']), [95, 100], [], 0, [3], [5]);
+		const data = new ModelLineProjectionData([3], mapTextToInjectedTextOptions(['°']), [95, 100], [], 0, new ConcealedSpans([3], [5], [ConcealedTextAnchor.After]));
 
 		test('getInputOffsetOfOutputPosition', () => {
 			// View offset 3 is before the replacement (the start of the concealed range), 4 is
@@ -285,7 +285,7 @@ suite('Editor ViewModel - LineBreakData', () => {
 
 	suite('Concealed Text (two ranges, injection in between)', () => {
 		// `ab(cd)ef(gh)ij`, concealing `cd` and `gh`, with text injected at offset 6.
-		const data = new ModelLineProjectionData([6], mapTextToInjectedTextOptions(['!']), [95, 100], [], 0, [2, 6], [2, 2]);
+		const data = new ModelLineProjectionData([6], mapTextToInjectedTextOptions(['!']), [95, 100], [], 0, new ConcealedSpans([2, 6], [2, 2], [ConcealedTextAnchor.Auto, ConcealedTextAnchor.Auto]));
 
 		test('getInputOffsetOfOutputPosition', () => {
 			assert.deepStrictEqual(

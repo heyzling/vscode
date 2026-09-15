@@ -45,12 +45,12 @@ function projectedLineChanges(context: ILineBreaksComputerContext, lineNumber: n
 function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerContext, lineNumbers: number[], fontInfo: FontInfo, tabSize: number, firstLineBreakColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): (ModelLineProjectionData | null)[] {
 	function createEmptyLineBreakWithPossiblyInjectedText(lineNumber: number): ModelLineProjectionData | null {
 		const changes = projectedLineChanges(context, lineNumber);
-		if (changes.injectionOptions || changes.concealOffsets) {
+		if (changes.injectionOptions || changes.concealed) {
 			const lineText = applyProjectedLineChanges(context.getLineContent(lineNumber), changes);
 
 			// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 			// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-			return new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, [lineText.length], [], 0, changes.concealOffsets, changes.concealLengths, changes.concealStops);
+			return new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, [lineText.length], [], 0, changes.concealed);
 		} else {
 			return null;
 		}
@@ -172,7 +172,7 @@ function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerCont
 
 		const changes = projectedLineChanges(context, lineNumber);
 
-		result[i] = new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength, changes.concealOffsets, changes.concealLengths, changes.concealStops);
+		result[i] = new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength, changes.concealed);
 	}
 
 	containerDomNode.remove();

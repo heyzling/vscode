@@ -62,31 +62,10 @@ export class ModelLineProjectionData {
 		public breakOffsetsVisibleColumn: number[],
 		public wrappedTextIndentLength: number,
 		/**
-		 * Offsets in the source of the ranges concealed in the view, sorted and non-overlapping.
-		 * No injection may start strictly inside one of these ranges.
+		 * The ranges concealed in the view, or `null` when there are none.
 		 */
-		public concealOffsets: number[] | null = null,
-		/**
-		 * `concealLengths.length` must equal `concealOffsets.length`
-		 */
-		public concealLengths: number[] | null = null,
-		/**
-		 * For each concealed range, which end its collapsed place stands for: {@link ConcealedTextAnchor.Auto},
-		 * {@link ConcealedTextAnchor.Before} or {@link ConcealedTextAnchor.After}. A range with a
-		 * replacement carries `After`.
-		 *
-		 * `concealStops.length` must equal `concealOffsets.length`
-		 */
-		public concealStops: ConcealedTextAnchor[] | null = null
+		public readonly concealed: ConcealedSpans | null = null
 	) {
-	}
-
-	private get _injectionCount(): number {
-		return this.injectionOffsets?.length ?? 0;
-	}
-
-	private get _concealCount(): number {
-		return this.concealOffsets?.length ?? 0;
 	}
 
 	public getOutputLineCount(): number {
@@ -98,7 +77,8 @@ export class ModelLineProjectionData {
 	 * inline decorations are computed in.
 	 */
 	public getInjectionOffsetsWithoutConcealedText(): number[] | null {
-		if (this.injectionOffsets === null || this.concealOffsets === null) {
+		const concealed = this.concealed;
+		if (this.injectionOffsets === null || concealed === null) {
 			return this.injectionOffsets;
 		}
 
@@ -107,8 +87,8 @@ export class ModelLineProjectionData {
 		let concealedLengthBefore = 0;
 		for (const injectionOffset of this.injectionOffsets) {
 			// A range starting exactly here has not been passed yet.
-			while (concealIndex < this._concealCount && this.concealOffsets[concealIndex] < injectionOffset) {
-				concealedLengthBefore += this.concealLengths![concealIndex];
+			while (concealIndex < concealed.count && concealed.offsetAt(concealIndex) < injectionOffset) {
+				concealedLengthBefore += concealed.lengthAt(concealIndex);
 				concealIndex++;
 			}
 			result.push(injectionOffset - concealedLengthBefore);
@@ -120,10 +100,10 @@ export class ModelLineProjectionData {
 	 * Whether this injected text is a concealed range's replacement, injected at the range start.
 	 */
 	private standsForConcealedText(injectionIndex: number): boolean {
-		if (this.concealOffsets === null || this.injectionOffsets === null) {
+		if (this.concealed === null || this.injectionOffsets === null) {
 			return false;
 		}
-		return this.concealOffsets.indexOf(this.injectionOffsets[injectionIndex]) !== -1;
+		return this.concealed.indexOfOffset(this.injectionOffsets[injectionIndex]) !== -1;
 	}
 
 	/**
@@ -132,14 +112,15 @@ export class ModelLineProjectionData {
 	 * already carry tokens are kept.
 	 */
 	public withReplacementTokens(lineTokens: LineTokens): InjectedTextOptions[] | null {
-		if (this.injectionOptions === null || this.concealOffsets === null) {
+		const injectionOffsets = this.injectionOffsets;
+		if (this.injectionOptions === null || injectionOffsets === null || this.concealed === null) {
 			return this.injectionOptions;
 		}
 		return this.injectionOptions.map((options, index) => {
 			if (options.tokens || !this.standsForConcealedText(index)) {
 				return options;
 			}
-			const metadata = lineTokens.getMetadata(lineTokens.findTokenIndexAtOffset(this.injectionOffsets![index]));
+			const metadata = lineTokens.getMetadata(lineTokens.findTokenIndexAtOffset(injectionOffsets[index]));
 			return { ...options, tokens: TokenArray.create([new TokenInfo(options.content.length, metadata)]) };
 		});
 	}
@@ -148,10 +129,15 @@ export class ModelLineProjectionData {
 	 * The concealed ranges of the line, as offsets into the model line.
 	 */
 	public getConcealedRanges(): OffsetRange[] | null {
-		if (this.concealOffsets === null) {
+		const concealed = this.concealed;
+		if (concealed === null) {
 			return null;
 		}
-		return this.concealOffsets.map((offset, idx) => new OffsetRange(offset, offset + this.concealLengths![idx]));
+		const result: OffsetRange[] = [];
+		for (let i = 0; i < concealed.count; i++) {
+			result.push(new OffsetRange(concealed.offsetAt(i), concealed.endAt(i)));
+		}
+		return result;
 	}
 
 	public getMinOutputOffset(outputLineIndex: number): number {
@@ -184,7 +170,8 @@ export class ModelLineProjectionData {
 
 		const offsetInInputWithInjection = outputLineIndex === 0 ? outputOffset : this.breakOffsets[outputLineIndex - 1] + outputOffset;
 
-		if (this.concealOffsets === null) {
+		const concealed = this.concealed;
+		if (concealed === null) {
 			let offsetInInput = offsetInInputWithInjection;
 			if (this.injectionOffsets !== null) {
 				for (let i = 0; i < this.injectionOffsets.length; i++) {
@@ -204,14 +191,16 @@ export class ModelLineProjectionData {
 		}
 
 		// Walk the source and the source with injections side by side, in source order.
+		const injectionOffsets = this.injectionOffsets ?? noInjectionOffsets;
+		const injectionOptions = this.injectionOptions ?? noInjectionOptions;
 		let inputOffset = 0;
 		let offsetSoFar = 0;
 		let injectionIndex = 0;
 		let concealIndex = 0;
 
-		while (injectionIndex < this._injectionCount || concealIndex < this._concealCount) {
-			const injectionOffset = injectionIndex < this._injectionCount ? this.injectionOffsets![injectionIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
-			const concealOffset = concealIndex < this._concealCount ? this.concealOffsets![concealIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
+		while (injectionIndex < injectionOffsets.length || concealIndex < concealed.count) {
+			const injectionOffset = injectionIndex < injectionOffsets.length ? injectionOffsets[injectionIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
+			const concealOffset = concealIndex < concealed.count ? concealed.offsetAt(concealIndex) : Constants.MAX_SAFE_SMALL_INTEGER;
 			const nextOffset = Math.min(injectionOffset, concealOffset);
 
 			// The text in between is mapped one to one.
@@ -222,7 +211,7 @@ export class ModelLineProjectionData {
 			inputOffset = nextOffset;
 
 			if (injectionOffset <= concealOffset) {
-				const injectionLength = this.injectionOptions![injectionIndex].content.length;
+				const injectionLength = injectionOptions[injectionIndex].content.length;
 				if (offsetInInputWithInjection < offsetSoFar + injectionLength) {
 					// At or within injected text, which has no source offset of its own.
 					return inputOffset;
@@ -230,16 +219,16 @@ export class ModelLineProjectionData {
 				offsetSoFar += injectionLength;
 				injectionIndex++;
 			} else {
-				// Both ends of the range are at `offsetSoFar`; `concealStops` says which one the
-				// place means. `Auto` resolves by travel direction and falls back to the end.
+				// Both ends of the range are at `offsetSoFar`; the stop says which one the place
+				// means. `Auto` resolves by travel direction and falls back to the end.
 				if (offsetInInputWithInjection === offsetSoFar) {
-					const stop = this.concealStops?.[concealIndex];
+					const stop = concealed.stopAt(concealIndex);
 					if (stop === ConcealedTextAnchor.Before
 						|| (stop === ConcealedTextAnchor.Auto && affinity === PositionAffinity.Left)) {
 						return inputOffset;
 					}
 				}
-				inputOffset += this.concealLengths![concealIndex];
+				inputOffset += concealed.lengthAt(concealIndex);
 				concealIndex++;
 			}
 		}
@@ -249,12 +238,15 @@ export class ModelLineProjectionData {
 
 	public translateToOutputPosition(inputOffset: number, affinity: PositionAffinity = PositionAffinity.None): OutputPosition {
 		let inputOffsetInInputWithInjection = inputOffset;
+		const injectionOffsets = this.injectionOffsets ?? noInjectionOffsets;
+		const injectionOptions = this.injectionOptions ?? noInjectionOptions;
+		const concealed = this.concealed ?? ConcealedSpans.empty;
 		let injectionIndex = 0;
 		let concealIndex = 0;
 
-		while (injectionIndex < this._injectionCount || concealIndex < this._concealCount) {
-			const injectionOffset = injectionIndex < this._injectionCount ? this.injectionOffsets![injectionIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
-			const concealOffset = concealIndex < this._concealCount ? this.concealOffsets![concealIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
+		while (injectionIndex < injectionOffsets.length || concealIndex < concealed.count) {
+			const injectionOffset = injectionIndex < injectionOffsets.length ? injectionOffsets[injectionIndex] : Constants.MAX_SAFE_SMALL_INTEGER;
+			const concealOffset = concealIndex < concealed.count ? concealed.offsetAt(concealIndex) : Constants.MAX_SAFE_SMALL_INTEGER;
 
 			if (injectionOffset <= concealOffset) {
 				if (inputOffset < injectionOffset) {
@@ -268,14 +260,14 @@ export class ModelLineProjectionData {
 					break;
 				}
 
-				inputOffsetInInputWithInjection += this.injectionOptions![injectionIndex].content.length;
+				inputOffsetInInputWithInjection += injectionOptions[injectionIndex].content.length;
 				injectionIndex++;
 			} else {
 				if (inputOffset <= concealOffset) {
 					break;
 				}
 
-				const concealLength = this.concealLengths![concealIndex];
+				const concealLength = concealed.lengthAt(concealIndex);
 				if (inputOffset < concealOffset + concealLength) {
 					// Inside the concealed range: collapses onto its end.
 					inputOffsetInInputWithInjection -= inputOffset - concealOffset;
@@ -466,13 +458,14 @@ export class ModelLineProjectionData {
 		const injectionOptions = this.injectionOptions;
 
 		if (injectionOffsets !== null) {
+			const concealed = this.concealed;
 			let totalInjectedTextLengthBefore = 0;
 			let totalConcealedTextLengthBefore = 0;
 			let concealIndex = 0;
 			for (let i = 0; i < injectionOffsets.length; i++) {
 				// Concealed ranges before this injection shift it towards the start of the line.
-				while (concealIndex < this._concealCount && this.concealOffsets![concealIndex] < injectionOffsets[i]) {
-					totalConcealedTextLengthBefore += this.concealLengths![concealIndex];
+				while (concealed !== null && concealIndex < concealed.count && concealed.offsetAt(concealIndex) < injectionOffsets[i]) {
+					totalConcealedTextLengthBefore += concealed.lengthAt(concealIndex);
 					concealIndex++;
 				}
 
@@ -515,15 +508,58 @@ export class InjectedText {
 	constructor(public readonly options: InjectedTextOptions) { }
 }
 
+const noInjectionOffsets: readonly number[] = [];
+const noInjectionOptions: readonly InjectedTextOptions[] = [];
+
+/**
+ * The ranges of a line concealed in the view, as offsets in the source: sorted, non-overlapping,
+ * and no injection starts strictly inside one.
+ */
+export class ConcealedSpans {
+	public static readonly empty = new ConcealedSpans([], [], []);
+
+	constructor(
+		private readonly _offsets: readonly number[],
+		private readonly _lengths: readonly number[],
+		/**
+		 * Which end each range's collapsed place stands for: {@link ConcealedTextAnchor.Auto},
+		 * {@link ConcealedTextAnchor.Before} or {@link ConcealedTextAnchor.After}.
+		 */
+		private readonly _stops: readonly ConcealedTextAnchor[],
+	) { }
+
+	public get count(): number {
+		return this._offsets.length;
+	}
+
+	public offsetAt(index: number): number {
+		return this._offsets[index];
+	}
+
+	public lengthAt(index: number): number {
+		return this._lengths[index];
+	}
+
+	public endAt(index: number): number {
+		return this._offsets[index] + this._lengths[index];
+	}
+
+	public stopAt(index: number): ConcealedTextAnchor {
+		return this._stops[index];
+	}
+
+	public indexOfOffset(offset: number): number {
+		return this._offsets.indexOf(offset);
+	}
+}
+
 /**
  * The view's changes to a model line: its concealed ranges and its injected text.
  */
 export interface IProjectedLineChanges {
 	readonly injectionOffsets: number[] | null;
 	readonly injectionOptions: InjectedTextOptions[] | null;
-	readonly concealOffsets: number[] | null;
-	readonly concealLengths: number[] | null;
-	readonly concealStops: ConcealedTextAnchor[] | null;
+	readonly concealed: ConcealedSpans | null;
 }
 
 /**
@@ -575,14 +611,12 @@ function fitToCellWidth(text: string, cells: number): string {
 export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null, lineText: string = ''): IProjectedLineChanges {
 	if (!concealedTexts || concealedTexts.length === 0) {
 		if (!injectedTexts || injectedTexts.length === 0) {
-			return { injectionOffsets: null, injectionOptions: null, concealOffsets: null, concealLengths: null, concealStops: null };
+			return { injectionOffsets: null, injectionOptions: null, concealed: null };
 		}
 		return {
 			injectionOffsets: injectedTexts.map(t => t.column - 1),
 			injectionOptions: injectedTexts.map(t => t.options),
-			concealOffsets: null,
-			concealLengths: null,
-			concealStops: null
+			concealed: null
 		};
 	}
 
@@ -637,9 +671,7 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 	return {
 		injectionOffsets: injectionOffsets.length > 0 ? injectionOffsets : null,
 		injectionOptions: injectionOptions.length > 0 ? injectionOptions : null,
-		concealOffsets: concealedTexts.map(c => c.startColumn - 1),
-		concealLengths: concealedTexts.map(c => c.length),
-		concealStops
+		concealed: new ConcealedSpans(concealedTexts.map(c => c.startColumn - 1), concealedTexts.map(c => c.length), concealStops)
 	};
 }
 
@@ -648,39 +680,41 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
  * injected text is put in, in one left to right pass.
  */
 export function applyProjectedLineChanges(lineText: string, changes: IProjectedLineChanges): string {
-	const { injectionOffsets, injectionOptions, concealOffsets, concealLengths } = changes;
-	if (concealOffsets === null) {
-		if (injectionOffsets === null) {
+	const { concealed } = changes;
+	if (concealed === null) {
+		const { injectionOffsets, injectionOptions } = changes;
+		if (injectionOffsets === null || injectionOptions === null) {
 			return lineText;
 		}
 		return LineInjectedText.applyInjectedText(lineText, injectionOffsets.map(
-			(offset, idx) => new LineInjectedText(0, 0, offset + 1, injectionOptions![idx], 0)
+			(offset, idx) => new LineInjectedText(0, 0, offset + 1, injectionOptions[idx], 0)
 		));
 	}
 
+	const injectionOffsets = changes.injectionOffsets ?? noInjectionOffsets;
+	const injectionOptions = changes.injectionOptions ?? noInjectionOptions;
 	let result = '';
 	let lastOffset = 0;
 	let injectionIndex = 0;
-	const injectionCount = injectionOffsets?.length ?? 0;
 
-	for (let i = 0; i < concealOffsets.length; i++) {
-		const startOffset = concealOffsets[i];
+	for (let i = 0; i < concealed.count; i++) {
+		const startOffset = concealed.offsetAt(i);
 
-		while (injectionIndex < injectionCount && injectionOffsets![injectionIndex] <= startOffset) {
-			result += lineText.substring(lastOffset, injectionOffsets![injectionIndex]);
-			lastOffset = injectionOffsets![injectionIndex];
-			result += injectionOptions![injectionIndex].content;
+		while (injectionIndex < injectionOffsets.length && injectionOffsets[injectionIndex] <= startOffset) {
+			result += lineText.substring(lastOffset, injectionOffsets[injectionIndex]);
+			lastOffset = injectionOffsets[injectionIndex];
+			result += injectionOptions[injectionIndex].content;
 			injectionIndex++;
 		}
 
 		result += lineText.substring(lastOffset, startOffset);
-		lastOffset = startOffset + concealLengths![i];
+		lastOffset = concealed.endAt(i);
 	}
 
-	for (; injectionIndex < injectionCount; injectionIndex++) {
-		result += lineText.substring(lastOffset, injectionOffsets![injectionIndex]);
-		lastOffset = injectionOffsets![injectionIndex];
-		result += injectionOptions![injectionIndex].content;
+	for (; injectionIndex < injectionOffsets.length; injectionIndex++) {
+		result += lineText.substring(lastOffset, injectionOffsets[injectionIndex]);
+		lastOffset = injectionOffsets[injectionIndex];
+		result += injectionOptions[injectionIndex].content;
 	}
 
 	result += lineText.substring(lastOffset);

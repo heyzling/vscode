@@ -42,7 +42,7 @@ export class MonospaceLineBreaksComputerFactory implements ILineBreaksComputerFa
 					const lineText = context.getLineContent(lineNumber);
 					const previousLineBreakData = previousBreakingData[i];
 					const isLineFeedWrappingEnabled = wrapOnEscapedLineFeeds && lineText.includes('"') && lineText.includes('\\n');
-					if (previousLineBreakData && !previousLineBreakData.injectionOptions && !previousLineBreakData.concealOffsets && !injectedText && !concealedText?.length && !isLineFeedWrappingEnabled) {
+					if (previousLineBreakData && !previousLineBreakData.injectionOptions && !previousLineBreakData.concealed && !injectedText && !concealedText?.length && !isLineFeedWrappingEnabled) {
 						result[i] = createLineBreaksFromPreviousLineBreaks(this.classifier, previousLineBreakData, lineText, tabSize, wrappingColumn, columnsForFullWidthChar, wrappingIndent, wordBreak);
 					} else {
 						result[i] = createLineBreaks(this.classifier, lineText, injectedText, concealedText, tabSize, wrappingColumn, columnsForFullWidthChar, wrappingIndent, wordBreak, isLineFeedWrappingEnabled);
@@ -359,12 +359,8 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 	const changes = computeProjectedLineChanges(injectedTexts, concealedTexts, _lineText);
 	const lineText = applyProjectedLineChanges(_lineText, changes);
 
-	const injectionOptions = changes.injectionOptions;
-	const injectionOffsets = changes.injectionOffsets;
-	const concealOffsets = changes.concealOffsets;
-	const concealLengths = changes.concealLengths;
-	const concealStops = changes.concealStops;
-	const isProjected = injectionOptions !== null || concealOffsets !== null;
+	const { injectionOffsets, injectionOptions, concealed } = changes;
+	const isProjected = injectionOptions !== null || concealed !== null;
 
 	if (firstLineBreakColumn === -1) {
 		if (!isProjected) {
@@ -372,7 +368,7 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 		}
 		// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 		// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealOffsets, concealLengths, concealStops);
+		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealed);
 	}
 
 	const len = lineText.length;
@@ -382,7 +378,7 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 		}
 		// creating a `LineBreakData` with an invalid `breakOffsetsVisibleColumn` is OK
 		// because `breakOffsetsVisibleColumn` will never be used because it contains injected text
-		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealOffsets, concealLengths, concealStops);
+		return new ModelLineProjectionData(injectionOffsets, injectionOptions, [lineText.length], [], 0, concealed);
 	}
 
 	const isKeepAll = (wordBreak === 'keepAll');
@@ -468,7 +464,7 @@ function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: st
 	breakingOffsets[breakingOffsetsCount] = len;
 	breakingOffsetsVisibleColumn[breakingOffsetsCount] = visibleColumn;
 
-	return new ModelLineProjectionData(injectionOffsets, injectionOptions, breakingOffsets, breakingOffsetsVisibleColumn, wrappedTextIndentLength, concealOffsets, concealLengths, concealStops);
+	return new ModelLineProjectionData(injectionOffsets, injectionOptions, breakingOffsets, breakingOffsetsVisibleColumn, wrappedTextIndentLength, concealed);
 }
 
 function computeCharWidth(charCode: number, visibleColumn: number, tabSize: number, columnsForFullWidthChar: number): number {
