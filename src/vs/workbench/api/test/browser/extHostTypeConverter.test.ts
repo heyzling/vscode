@@ -6,7 +6,7 @@
 
 import assert from 'assert';
 import * as extHostTypes from '../../common/extHostTypes.js';
-import { ChatAgentResult, ConcealRenderOptions, DecorationRenderOptions, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, ThemableDecorationAttachmentRenderOptions, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
+import { ChatAgentResult, ConcealRenderOptions, DecorationRenderOptions, LanguageModelChatMessage2, MarkdownString, NotebookCellOutputItem, NotebookData, LanguageSelector, WorkspaceEdit } from '../../common/extHostTypeConverters.js';
 import { isEmptyObject } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IWorkspaceTextEditDto } from '../../common/extHost.protocol.js';
@@ -200,24 +200,6 @@ suite('ExtHostTypeConverter', function () {
 	test('DecorationRenderOptions - an explicit OpenOpen range behavior survives conversion', function () {
 		assert.strictEqual(DecorationRenderOptions.from({ rangeBehavior: extHostTypes.DecorationRangeBehavior.OpenOpen }).rangeBehavior, TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges);
 		assert.strictEqual(DecorationRenderOptions.from({}).rangeBehavior, undefined, 'unset stays unset');
-	});
-
-	test('ThemableDecorationAttachmentRenderOptions - attachment styling reaches the render options', function () {
-		const converted = ThemableDecorationAttachmentRenderOptions.from({
-			contentText: 'chip',
-			borderRadius: '3px',
-			fontSize: '10px',
-			fontFamily: 'monospace',
-			opacity: '0.8',
-			padding: '0 2px',
-			verticalAlign: 'middle',
-		});
-		assert.strictEqual(converted.borderRadius, '3px');
-		assert.strictEqual(converted.fontSize, '10px');
-		assert.strictEqual(converted.fontFamily, 'monospace');
-		assert.strictEqual(converted.opacity, '0.8');
-		assert.strictEqual(converted.padding, '0 2px');
-		assert.strictEqual(converted.verticalAlign, 'middle');
 	});
 });
 

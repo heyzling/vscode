@@ -128,31 +128,4 @@ declare module 'vscode' {
 		 */
 		replacement?: ThemableDecorationAttachmentRenderOptions;
 	}
-
-	export interface ThemableDecorationAttachmentRenderOptions {
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		borderRadius?: string;
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		fontSize?: string;
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		fontFamily?: string;
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		opacity?: string;
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		padding?: string;
-		/**
-		 * CSS styling property that will be applied to text enclosed by a decoration.
-		 */
-		verticalAlign?: string;
-	}
 }
