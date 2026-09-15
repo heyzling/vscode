@@ -575,7 +575,6 @@ export namespace ConcealRenderOptions {
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
 		if (replacement.contentText) {
-			// Single line only; the length cap is the editor's setting.
 			replacement.contentText = replacement.contentText.replace(/[\r\n]/g, '');
 		}
 		const preserveWidth = options.preserveWidth === true ? true : undefined;

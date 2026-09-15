@@ -375,7 +375,7 @@ export interface IEditorOptions {
 	wrapOnEscapedLineFeeds?: boolean;
 	/**
 	 * Controls text concealment: whether decorations may conceal text, i.e. remove it from
-	 * the rendered view, and how a replacement drawn in its place is capped.
+	 * the rendered view.
 	 */
 	conceal?: IEditorConcealOptions;
 	/**
