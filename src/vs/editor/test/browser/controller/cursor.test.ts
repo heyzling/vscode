@@ -6857,7 +6857,7 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('protect: the delete keys take the visible neighbours and step over the range', () => {
+	test('protect: the delete keys take the visible neighbours and step over the range; a selection is deleted as covered', () => {
 		// `**bold**` with both markers concealed and protected.
 		const withEmphasis = (callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void) => {
 			withTestCodeEditor('aa **bold** zz', {}, (editor, viewModel) => {
@@ -6888,6 +6888,20 @@ suite('Editor Controller - Concealed Text', () => {
 			moveTo(editor, viewModel, 1, 6);
 			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
 			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa**bold** zz', 'Backspace steps over the opening marker and takes the space in front');
+		});
+
+		for (const command of [CoreEditingCommands.DeleteLeft, CoreEditingCommands.DeleteRight]) {
+			withEmphasis((editor) => {
+				editor.setSelection(new Selection(1, 4, 1, 12));
+				editor.runCommand(command, null);
+				assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa  zz', `${command.id}: a selection over the construct takes it whole, markers included`);
+			});
+		}
+
+		withEmphasis((editor) => {
+			editor.setSelection(new Selection(1, 1, 1, 8));
+			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'ld** zz', 'a selection reaching into the construct takes what it covers');
 		});
 	});
 

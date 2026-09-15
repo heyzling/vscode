@@ -377,7 +377,7 @@ export abstract class DeleteWordCommand extends EditorCommand {
 			if (caretDelete && revealConcealedTextInsteadOfDeleting(deleteRange, model, concealedTextEnabled)) {
 				return null;
 			}
-			return new ReplaceCommand(expandOverConcealedText(deleteRange, model, concealedTextEnabled, this._deleteDirection), '');
+			return new ReplaceCommand(expandOverConcealedText(deleteRange, model, concealedTextEnabled, caretDelete ? this._deleteDirection : undefined), '');
 		});
 
 		editor.pushUndoStop();

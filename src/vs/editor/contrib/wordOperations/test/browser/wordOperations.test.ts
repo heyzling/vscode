@@ -622,6 +622,19 @@ suite('WordOperations', () => {
 		});
 	});
 
+	test('deleteWordLeft with a selection takes protected concealed text as covered', () => {
+		withTestCodeEditor(['aa **bold** zz'], {}, (editor, _) => {
+			const model = editor.getModel()!;
+			model.deltaDecorations([], [
+				{ range: new Range(1, 4, 1, 6), options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+				{ range: new Range(1, 10, 1, 12), options: { description: 'test-conceal', concealedText: { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect } } },
+			]);
+			editor.setSelection(new Selection(1, 4, 1, 12));
+			deleteWordLeft(editor);
+			assert.strictEqual(model.getLineContent(1), 'aa  zz', 'the selection goes whole, markers included');
+		});
+	});
+
 	test('deleteWordLeft under reveal shows the hidden text and takes nothing', () => {
 		withTestCodeEditor(['x \\gamma y'], {}, (editor, _) => {
 			const model = editor.getModel()!;

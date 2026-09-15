@@ -33,7 +33,7 @@ export class DeleteOperations {
 				commands[i] = null;
 				continue;
 			}
-			const deleteSelection = expandOverConcealedText(rightRange, model, config.concealedText, 'right');
+			const deleteSelection = expandOverConcealedText(rightRange, model, config.concealedText, selection.isEmpty() ? 'right' : undefined);
 
 			if (deleteSelection.isEmpty()) {
 				// Probably at end of file => ignore
@@ -192,7 +192,7 @@ export class DeleteOperations {
 				commands[i] = null;
 				continue;
 			}
-			const deleteRange = expandOverConcealedText(leftRange, model, config.concealedText, 'left');
+			const deleteRange = expandOverConcealedText(leftRange, model, config.concealedText, selection.isEmpty() ? 'left' : undefined);
 
 			// Ignore empty delete ranges, as they have no effect
 			// They happen if the cursor is at the beginning of the file.

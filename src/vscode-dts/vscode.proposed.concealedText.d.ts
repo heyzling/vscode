@@ -37,7 +37,7 @@ declare module 'vscode' {
 
 		/**
 		 * Draw the replacement at the rendered width of the text it stands for: padded when
-		 * narrower, clipped with `…` when wider. Width is measured in rendered cells.
+		 * narrower, clipped with `…` when wider. Width is measured in rendered cells, a tab as one.
 		 * Defaults to `false`.
 		 */
 		preserveWidth?: boolean;
@@ -63,7 +63,8 @@ declare module 'vscode' {
 		anchor?: 'auto' | 'before' | 'after' | 'lineStart' | 'lineEnd';
 
 		/**
-		 * What Backspace, Delete and word-delete do at a concealed range.
+		 * What Backspace, Delete and word-delete do at a concealed range. A selection is
+		 * deleted as covered, whatever the policy.
 		 *
 		 * - `atomic` (default): the whole range is deleted, as one undo step.
 		 * - `protect`: deletion never reaches the concealed text; the keys step over the range.
