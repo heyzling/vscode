@@ -566,10 +566,32 @@ export namespace ThemableDecorationRenderOptions {
 	}
 }
 
+export namespace ConcealAnchor {
+	export function from(value: types.ConcealAnchor | undefined): IConcealDecorationRenderOptions['anchor'] {
+		switch (value) {
+			case types.ConcealAnchor.Before: return 'before';
+			case types.ConcealAnchor.After: return 'after';
+			case types.ConcealAnchor.LineStart: return 'lineStart';
+			case types.ConcealAnchor.LineEnd: return 'lineEnd';
+			default: return undefined;
+		}
+	}
+}
+
+export namespace ConcealDeletionPolicy {
+	export function from(value: types.ConcealDeletionPolicy | undefined): IConcealDecorationRenderOptions['deletionPolicy'] {
+		switch (value) {
+			case types.ConcealDeletionPolicy.Protect: return 'protect';
+			case types.ConcealDeletionPolicy.Reveal: return 'reveal';
+			default: return undefined;
+		}
+	}
+}
+
 export namespace ConcealRenderOptions {
 	export function from(options: vscode.ConcealRenderOptions): IConcealDecorationRenderOptions {
-		const anchor = options.anchor === 'before' || options.anchor === 'after' || options.anchor === 'lineStart' || options.anchor === 'lineEnd' ? options.anchor : undefined;
-		const deletionPolicy = options.deletionPolicy === 'protect' || options.deletionPolicy === 'reveal' ? options.deletionPolicy : undefined;
+		const anchor = ConcealAnchor.from(options.anchor);
+		const deletionPolicy = ConcealDeletionPolicy.from(options.deletionPolicy);
 		if (!options.replacement) {
 			return { anchor, deletionPolicy };
 		}

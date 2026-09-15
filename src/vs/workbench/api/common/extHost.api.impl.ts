@@ -2051,6 +2051,8 @@ export function createApiFactoryAndRegisterActors(accessor: ServicesAccessor): I
 			DebugConsoleMode: extHostTypes.DebugConsoleMode,
 			DebugVisualization: extHostTypes.DebugVisualization,
 			DecorationRangeBehavior: extHostTypes.DecorationRangeBehavior,
+			ConcealAnchor: extHostTypes.ConcealAnchor,
+			ConcealDeletionPolicy: extHostTypes.ConcealDeletionPolicy,
 			Diagnostic: extHostTypes.Diagnostic,
 			DiagnosticRelatedInformation: extHostTypes.DiagnosticRelatedInformation,
 			DiagnosticSeverity: extHostTypes.DiagnosticSeverity,

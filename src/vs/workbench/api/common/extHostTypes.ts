@@ -726,6 +726,20 @@ export enum DecorationRangeBehavior {
 	ClosedOpen = 3
 }
 
+export enum ConcealAnchor {
+	Auto = 0,
+	Before = 1,
+	After = 2,
+	LineStart = 3,
+	LineEnd = 4
+}
+
+export enum ConcealDeletionPolicy {
+	Atomic = 0,
+	Protect = 1,
+	Reveal = 2
+}
+
 export namespace TextEditorSelectionChangeKind {
 	export function fromValue(s: TextEditorSelectionSource | string | undefined) {
 		switch (s) {

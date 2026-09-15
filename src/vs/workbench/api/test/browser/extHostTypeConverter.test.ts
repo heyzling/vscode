@@ -185,17 +185,16 @@ suite('ExtHostTypeConverter', function () {
 		const short = ConcealRenderOptions.from({ replacement: { contentText: 'a\nb\r\nc' } });
 		assert.strictEqual(short.replacement!.contentText, 'abc', 'line feeds are dropped');
 
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'before' }).anchor, 'before');
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'after' }).anchor, 'after', 'auto is the default, so a declared side must survive');
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'auto' }).anchor, undefined, 'the default is left unsaid');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Auto }).anchor, undefined, 'the default is left unsaid');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Before }).anchor, 'before');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.After }).anchor, 'after', 'auto is the default, so a declared side must survive');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.LineStart }).anchor, 'lineStart');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.LineEnd, replacement: { contentText: 'id' } }).anchor, 'lineEnd', 'an anchor survives beside a replacement');
+		assert.strictEqual(ConcealRenderOptions.from({ anchor: 99 as never }).anchor, undefined, 'an unknown value is dropped');
 
-		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'protect' }).deletionPolicy, 'protect');
-		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'reveal' }).deletionPolicy, 'reveal');
-		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: 'atomic' }).deletionPolicy, undefined, 'the default is left unsaid');
-
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineStart' }).anchor, 'lineStart');
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'lineEnd', replacement: { contentText: 'id' } }).anchor, 'lineEnd', 'an anchor survives beside a replacement');
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: 'middle' as never }).anchor, undefined, 'an unknown value is dropped');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: extHostTypes.ConcealDeletionPolicy.Atomic }).deletionPolicy, undefined, 'the default is left unsaid');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: extHostTypes.ConcealDeletionPolicy.Protect }).deletionPolicy, 'protect');
+		assert.strictEqual(ConcealRenderOptions.from({ deletionPolicy: extHostTypes.ConcealDeletionPolicy.Reveal }).deletionPolicy, 'reveal');
 	});
 
 	test('DecorationRenderOptions - an explicit OpenOpen range behavior survives conversion', function () {
