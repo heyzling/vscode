@@ -170,29 +170,10 @@ export class ModelLineProjectionData {
 
 		const offsetInInputWithInjection = outputLineIndex === 0 ? outputOffset : this.breakOffsets[outputLineIndex - 1] + outputOffset;
 
-		const concealed = this.concealed;
-		if (concealed === null) {
-			let offsetInInput = offsetInInputWithInjection;
-			if (this.injectionOffsets !== null) {
-				for (let i = 0; i < this.injectionOffsets.length; i++) {
-					if (offsetInInput > this.injectionOffsets[i]) {
-						if (offsetInInput < this.injectionOffsets[i] + this.injectionOptions![i].content.length) {
-							// `inputOffset` is within injected text
-							offsetInInput = this.injectionOffsets[i];
-						} else {
-							offsetInInput -= this.injectionOptions![i].content.length;
-						}
-					} else {
-						break;
-					}
-				}
-			}
-			return offsetInInput;
-		}
-
 		// Walk the source and the source with injections side by side, in source order.
 		const injectionOffsets = this.injectionOffsets ?? noInjectionOffsets;
 		const injectionOptions = this.injectionOptions ?? noInjectionOptions;
+		const concealed = this.concealed ?? ConcealedSpans.empty;
 		let inputOffset = 0;
 		let offsetSoFar = 0;
 		let injectionIndex = 0;
