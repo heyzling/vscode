@@ -20,6 +20,12 @@ export function isConcealAwareModel(model: object): model is IConcealAwareModel 
 	return typeof (model as IConcealAwareModel).getLineConcealedText === 'function';
 }
 
+const noConcealedText: readonly LineConcealedText[] = [];
+
+function concealedTextOnLine(model: object, enabled: boolean, lineNumber: number): readonly LineConcealedText[] {
+	return enabled && isConcealAwareModel(model) ? model.getLineConcealedText(lineNumber) : noConcealedText;
+}
+
 function hasReplacement(options: ConcealedTextOptions): boolean {
 	return !!options.replacement && options.replacement.content.length > 0;
 }
@@ -29,6 +35,14 @@ function hasReplacement(options: ConcealedTextOptions): boolean {
  */
 function isLineAnchored(options: ConcealedTextOptions): boolean {
 	return options.anchor === ConcealedTextAnchor.LineStart || options.anchor === ConcealedTextAnchor.LineEnd;
+}
+
+// Leaving one range can land on the edge of the next.
+function settle(column: number, step: (column: number) => number): number {
+	for (let next = step(column); next !== column; next = step(column)) {
+		column = next;
+	}
+	return column;
 }
 
 /**
@@ -61,16 +75,12 @@ export function revealConcealedTextInsteadOfDeleting(range: Range, model: object
  * policy. `direction` is the caret delete's direction; a selection delete has none.
  */
 export function expandOverConcealedText(range: Range, model: object, enabled: boolean, direction?: 'left' | 'right'): Range {
-	if (!enabled || !isConcealAwareModel(model)) {
-		return range;
-	}
-
-	let startColumn = deleteBoundaryOutsideConcealedText(model, range.startLineNumber, range.startColumn, false, direction);
-	let endColumn = deleteBoundaryOutsideConcealedText(model, range.endLineNumber, range.endColumn, true, direction);
+	let startColumn = deleteBoundaryOutsideConcealedText(concealedTextOnLine(model, enabled, range.startLineNumber), range.startColumn, false, direction);
+	let endColumn = deleteBoundaryOutsideConcealedText(concealedTextOnLine(model, enabled, range.endLineNumber), range.endColumn, true, direction);
 
 	// A caret delete never reaches a protected range, even when a word range covers it whole.
 	if (direction !== undefined && range.startLineNumber === range.endLineNumber) {
-		for (const concealed of model.getLineConcealedText(range.startLineNumber)) {
+		for (const concealed of concealedTextOnLine(model, enabled, range.startLineNumber)) {
 			if (concealed.options.deletionPolicy !== ConcealedTextDeletionPolicy.Protect) {
 				continue;
 			}
@@ -94,8 +104,8 @@ export function expandOverConcealedText(range: Range, model: object, enabled: bo
  * Where one end of a delete lands when it falls inside a concealed range: an atomic range is
  * covered whole, a protected range pushes it back to the boundary.
  */
-function deleteBoundaryOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number, forward: boolean, direction: 'left' | 'right' | undefined): number {
-	for (const concealed of model.getLineConcealedText(lineNumber)) {
+function deleteBoundaryOutsideConcealedText(concealedTexts: readonly LineConcealedText[], column: number, forward: boolean, direction: 'left' | 'right' | undefined): number {
+	for (const concealed of concealedTexts) {
 		if (!(column > concealed.startColumn && column < concealed.endColumn)) {
 			continue;
 		}
@@ -111,38 +121,29 @@ function deleteBoundaryOutsideConcealedText(model: IConcealAwareModel, lineNumbe
  * Hops a caret delete's position across the protected concealed ranges it would otherwise reach into.
  */
 export function positionPastProtectedConcealedText(position: Position, model: object, forward: boolean, enabled: boolean): Position {
-	if (!enabled || !isConcealAwareModel(model)) {
-		return position;
-	}
-	let column = position.column;
-	let hopped = true;
-	while (hopped) {
-		hopped = false;
-		for (const concealed of model.getLineConcealedText(position.lineNumber)) {
+	const concealedTexts = concealedTextOnLine(model, enabled, position.lineNumber);
+	const column = settle(position.column, column => {
+		for (const concealed of concealedTexts) {
 			if (concealed.options.deletionPolicy !== ConcealedTextDeletionPolicy.Protect) {
 				continue;
 			}
 			if (!forward && column === concealed.endColumn) {
 				column = concealed.startColumn;
-				hopped = true;
 			} else if (forward && column === concealed.startColumn) {
 				column = concealed.endColumn;
-				hopped = true;
 			}
 		}
-	}
-	if (column === position.column) {
-		return position;
-	}
-	return new Position(position.lineNumber, column);
+		return column;
+	});
+	return column === position.column ? position : new Position(position.lineNumber, column);
 }
 
 /**
  * Moves a column that falls inside a concealed range out to the range's near end, in the given
  * direction. Columns at either end of a range are already outside it.
  */
-function columnOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number, forward: boolean): number {
-	for (const concealed of model.getLineConcealedText(lineNumber)) {
+function columnOutsideConcealedText(concealedTexts: readonly LineConcealedText[], column: number, forward: boolean): number {
+	for (const concealed of concealedTexts) {
 		if (column > concealed.startColumn && column < concealed.endColumn) {
 			return forward ? concealed.endColumn : concealed.startColumn;
 		}
@@ -154,8 +155,8 @@ function columnOutsideConcealedText(model: IConcealAwareModel, lineNumber: numbe
  * The end of a concealed range a caret column belongs on. With a replacement only a column
  * strictly inside moves; with nothing drawn the caret stop decides which end the one place is.
  */
-function caretColumnOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number): number {
-	for (const concealed of model.getLineConcealedText(lineNumber)) {
+function caretColumnOutsideConcealedText(concealedTexts: readonly LineConcealedText[], column: number): number {
+	for (const concealed of concealedTexts) {
 		const stop = concealedTextCaretStop(concealed.options);
 		const inside = column > concealed.startColumn && column < concealed.endColumn;
 		const atOrInside = column >= concealed.startColumn && column <= concealed.endColumn;
@@ -177,12 +178,8 @@ function caretColumnOutsideConcealedText(model: IConcealAwareModel, lineNumber: 
  * nothing moved.
  */
 export function stateOutsideConcealedText(selectionStart: Range, position: Position, model: object, enabled: boolean): { selectionStart: Range; position: Position } | null {
-	if (!enabled || !isConcealAwareModel(model)) {
-		return null;
-	}
-
 	if (selectionStart.isEmpty() && selectionStart.getStartPosition().equals(position)) {
-		const column = caretColumnOutsideConcealedText(model, position.lineNumber, position.column);
+		const column = caretColumnOutsideConcealedText(concealedTextOnLine(model, enabled, position.lineNumber), position.column);
 		if (column === position.column) {
 			return null;
 		}
@@ -197,9 +194,9 @@ export function stateOutsideConcealedText(selectionStart: Range, position: Posit
 	const positionIsAfterAnchor = !position.isBefore(anchor);
 
 	const newSelectionStart = selectionStart.isEmpty()
-		? Range.fromPositions(new Position(anchor.lineNumber, columnOutsideConcealedText(model, anchor.lineNumber, anchor.column, !positionIsAfterAnchor)))
+		? Range.fromPositions(new Position(anchor.lineNumber, columnOutsideConcealedText(concealedTextOnLine(model, enabled, anchor.lineNumber), anchor.column, !positionIsAfterAnchor)))
 		: expandOverConcealedText(selectionStart, model, enabled);
-	const newColumn = columnOutsideConcealedText(model, position.lineNumber, position.column, positionIsAfterAnchor);
+	const newColumn = columnOutsideConcealedText(concealedTextOnLine(model, enabled, position.lineNumber), position.column, positionIsAfterAnchor);
 
 	if (newColumn === position.column && newSelectionStart.equalsRange(selectionStart)) {
 		return null;
@@ -212,16 +209,9 @@ export function stateOutsideConcealedText(selectionStart: Range, position: Posit
  * for, so the range is one step to cross.
  */
 export function positionOutsideConcealedText(position: Position, model: object, forward: boolean, enabled: boolean): Position {
-	if (!enabled || !isConcealAwareModel(model)) {
-		return position;
-	}
-
-	const concealed = model.getLineConcealedText(position.lineNumber);
-	let column = position.column;
-	// Leaving one range can land on the edge of the next.
-	for (let moved = true; moved;) {
-		moved = false;
-		for (const range of concealed) {
+	const concealedTexts = concealedTextOnLine(model, enabled, position.lineNumber);
+	const column = settle(position.column, column => {
+		for (const range of concealedTexts) {
 			let from: number;
 			let to: number;
 			if (hasReplacement(range.options) && !isLineAnchored(range.options)) {
@@ -233,17 +223,12 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 				from = range.startColumn;
 				to = range.endColumn;
 			}
-			if (column < from || column > to) {
-				continue;
-			}
-			const end = forward ? range.endColumn : range.startColumn;
-			if (end !== column) {
-				column = end;
-				moved = true;
+			if (column >= from && column <= to) {
+				column = forward ? range.endColumn : range.startColumn;
 			}
 		}
-	}
-
+		return column;
+	});
 	return column === position.column ? position : new Position(position.lineNumber, column);
 }
 
@@ -254,36 +239,29 @@ export function positionOutsideConcealedText(position: Position, model: object, 
  * line-start range and left at a line-end one.
  */
 export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', position: Position, model: object, enabled: boolean): Position {
-	if (!enabled || !isConcealAwareModel(model)) {
-		return position;
-	}
-	let column = position.column;
+	const concealedTexts = concealedTextOnLine(model, enabled, position.lineNumber);
 	let lineStart = false;
-	// Leaving one range can land on the stop of the next.
-	for (let moved = true; moved;) {
-		moved = false;
-		for (const concealed of model.getLineConcealedText(position.lineNumber)) {
+	let column = settle(position.column, column => {
+		for (const concealed of concealedTexts) {
 			const stop = concealedTextCaretStop(concealed.options);
 			if (isLineAnchored(concealed.options)) {
 				// `After` is a line-start range, `Before` a line-end one.
 				if (stop === ConcealedTextAnchor.After && column === concealed.endColumn) {
 					column = concealed.startColumn;
-					lineStart = moved = true;
+					lineStart = true;
 				} else if (stop === ConcealedTextAnchor.Before && edit === 'lineBreak' && column === concealed.startColumn) {
 					column = concealed.endColumn;
-					moved = true;
 				}
 			} else if (!hasReplacement(concealed.options)) {
 				if (stop === ConcealedTextAnchor.After && column === concealed.endColumn) {
 					column = concealed.startColumn;
-					moved = true;
 				} else if (stop === ConcealedTextAnchor.Before && column === concealed.startColumn) {
 					column = concealed.endColumn;
-					moved = true;
 				}
 			}
 		}
-	}
+		return column;
+	});
 	if (lineStart && edit === 'lineBreak') {
 		// The line moves down whole, with any prefix in front of the range.
 		column = 1;
