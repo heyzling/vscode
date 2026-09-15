@@ -149,7 +149,7 @@ export class Cursor {
 		}
 
 		// On every state: a range can be concealed around a cursor that has not moved.
-		const concealed = stateOutsideConcealedText(modelState.selectionStart, modelState.position, context.model, context.cursorConfig.concealedText);
+		const concealed = stateOutsideConcealedText(modelState.selectionStart, modelState.position, context.model, context.cursorConfig.concealEnabled);
 		if (concealed) {
 			modelState = new SingleCursorState(concealed.selectionStart, modelState.selectionStartKind, modelState.selectionStartLeftoverVisibleColumns, concealed.position, modelState.leftoverVisibleColumns);
 			// Recomputed from the model below.

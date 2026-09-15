@@ -12,9 +12,7 @@ import { ITextModel } from '../model.js';
 import { ReplaceCommand } from './replaceCommand.js';
 
 /**
- * A paste at a concealed range's caret stop whose line breaks belong outside the range: the part
- * that stays with the range's text goes at the caret, the rest past the range, and the caret
- * ends after the later part.
+ * A paste at a concealed range's caret stop, split at a line break so that only the part belonging to the range's text stays at the caret.
  */
 export class SplitPasteCommand implements ICommand {
 

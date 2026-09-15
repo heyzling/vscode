@@ -25,15 +25,15 @@ export class DeleteOperations {
 			let selection = selections[i];
 
 			if (selection.isEmpty()) {
-				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, true, config.concealedText);
+				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, true, config.concealEnabled);
 				selection = Selection.fromPositions(hopped, hopped);
 			}
 			const rightRange = this.getDeleteRightRange(selection, model, config);
-			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(rightRange, model, config.concealedText)) {
+			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(rightRange, model, config.concealEnabled)) {
 				commands[i] = null;
 				continue;
 			}
-			const deleteSelection = expandOverConcealedText(rightRange, model, config.concealedText, selection.isEmpty() ? 'right' : undefined);
+			const deleteSelection = expandOverConcealedText(rightRange, model, config.concealEnabled, selection.isEmpty() ? 'right' : undefined);
 
 			if (deleteSelection.isEmpty()) {
 				// Probably at end of file => ignore
@@ -184,15 +184,15 @@ export class DeleteOperations {
 			let selection = selections[i];
 
 			if (selection.isEmpty()) {
-				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, false, config.concealedText);
+				const hopped = positionPastProtectedConcealedText(selection.getPosition(), model, false, config.concealEnabled);
 				selection = Selection.fromPositions(hopped, hopped);
 			}
 			const leftRange = DeleteOperations.getDeleteLeftRange(selection, model, config);
-			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(leftRange, model, config.concealedText)) {
+			if (selection.isEmpty() && revealConcealedTextInsteadOfDeleting(leftRange, model, config.concealEnabled)) {
 				commands[i] = null;
 				continue;
 			}
-			const deleteRange = expandOverConcealedText(leftRange, model, config.concealedText, selection.isEmpty() ? 'left' : undefined);
+			const deleteRange = expandOverConcealedText(leftRange, model, config.concealEnabled, selection.isEmpty() ? 'left' : undefined);
 
 			// Ignore empty delete ranges, as they have no effect
 			// They happen if the cursor is at the beginning of the file.

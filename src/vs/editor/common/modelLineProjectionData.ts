@@ -336,8 +336,7 @@ export class ModelLineProjectionData {
 	}
 
 	/**
-	 * The nearer end of a concealed replacement, for a vertical move landing inside it. Returns
-	 * `undefined` for horizontal affinities and for injected text that is not a replacement.
+	 * The nearer end of a concealed replacement for a vertical move landing inside it, else `undefined`.
 	 */
 	private nearerConcealedEdge(injectedText: { offsetInInputWithInjections: number; length: number; injectedTextIndex: number }, offset: number, affinity: PositionAffinity): number | undefined {
 		if (affinity !== PositionAffinity.LeftOfInjectedText && affinity !== PositionAffinity.RightOfInjectedText) {
@@ -543,21 +542,19 @@ export interface IProjectedLineChanges {
 	readonly concealed: ConcealedSpans | null;
 }
 
-/**
- * Turns a line's concealed and injected text into the offsets a {@link ModelLineProjectionData}
- * is built from. Injected text strictly inside a concealed range is dropped; a replacement is
- * injected at its range start, after text already injected there.
- */
 const graphemeSegmenter = new Lazy(() => new Intl.Segmenter(undefined, { granularity: 'grapheme' }));
 
 /**
- * Rendered width in cells: full-width and emoji graphemes count two, a tab counts one.
+ * Rendered width in cells of a grapheme starting with the code point: full-width and emoji count two, a tab one.
  */
+function graphemeCells(codePoint: number): 1 | 2 {
+	return (strings.isFullWidthCharacter(codePoint) || strings.isEmojiImprecise(codePoint)) ? 2 : 1;
+}
+
 function textCellWidth(text: string): number {
 	let cells = 0;
 	for (const segment of graphemeSegmenter.value.segment(text)) {
-		const codePoint = segment.segment.codePointAt(0)!;
-		cells += (strings.isFullWidthCharacter(codePoint) || strings.isEmojiImprecise(codePoint)) ? 2 : 1;
+		cells += graphemeCells(segment.segment.codePointAt(0)!);
 	}
 	return cells;
 }
@@ -577,18 +574,22 @@ function fitToCellWidth(text: string, cells: number): string {
 	let taken = 0;
 	let end = 0;
 	for (const segment of graphemeSegmenter.value.segment(text)) {
-		const codePoint = segment.segment.codePointAt(0)!;
-		const graphemeCells = (strings.isFullWidthCharacter(codePoint) || strings.isEmojiImprecise(codePoint)) ? 2 : 1;
-		if (taken + graphemeCells > cells - 1) {
+		const graphemeWidth = graphemeCells(segment.segment.codePointAt(0)!);
+		if (taken + graphemeWidth > cells - 1) {
 			break;
 		}
-		taken += graphemeCells;
+		taken += graphemeWidth;
 		end = segment.index + segment.segment.length;
 	}
 	const result = text.substring(0, end) + '…';
 	return taken + 1 < cells ? result + ' '.repeat(cells - taken - 1) : result;
 }
 
+/**
+ * Turns a line's concealed and injected text into the offsets a {@link ModelLineProjectionData}
+ * is built from: injected text strictly inside a concealed range is dropped, and a replacement is
+ * injected at its range start, after text already injected there.
+ */
 export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null, lineText: string = ''): IProjectedLineChanges {
 	if (!concealedTexts || concealedTexts.length === 0) {
 		if (!injectedTexts || injectedTexts.length === 0) {

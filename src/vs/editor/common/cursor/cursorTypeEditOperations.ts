@@ -535,14 +535,13 @@ export class EnterOperation {
 
 	/**
 	 * A line break at a concealed range's caret stop goes past the range, outside its construct.
-	 * In front of the range the text moves down with the caret still at the stop.
 	 */
 	private static _enterOutsideConcealedText(config: CursorConfiguration, model: ITextModel, keepPosition: boolean, range: Range): ICommand {
 		if (!range.isEmpty()) {
 			return this._enter(config, model, keepPosition, range);
 		}
 		const position = range.getStartPosition();
-		const breakPosition = positionPastConcealedTextFor('lineBreak', position, model, config.concealedText);
+		const breakPosition = positionPastConcealedTextFor('lineBreak', position, model, config.concealEnabled);
 		if (breakPosition.equals(position)) {
 			return this._enter(config, model, keepPosition, range);
 		}
@@ -739,7 +738,7 @@ export class PasteOperation {
 				pasteOnNewLine = false;
 			}
 			const breakPosition = selection.isEmpty() && text.indexOf('\n') !== -1
-				? positionPastConcealedTextFor('lineBreak', position, model, config.concealedText)
+				? positionPastConcealedTextFor('lineBreak', position, model, config.concealEnabled)
 				: position;
 			if (pasteOnNewLine) {
 				// Paste entire line at the beginning of line
@@ -807,7 +806,7 @@ export class TabOperation {
 		for (let i = 0, len = selections.length; i < len; i++) {
 			let selection = selections[i];
 			if (selection.isEmpty()) {
-				selection = Selection.fromPositions(positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealedText));
+				selection = Selection.fromPositions(positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealEnabled));
 				const lineText = model.getLineContent(selection.startLineNumber);
 				if (/^\s*$/.test(lineText) && model.tokenization.isCheapToTokenize(selection.startLineNumber)) {
 					let goodIndent = this._goodIndentForLine(config, model, selection.startLineNumber);

@@ -170,7 +170,7 @@ export class TypeOperations {
 				if (!selection.isEmpty()) {
 					return selection;
 				}
-				const position = positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealedText);
+				const position = positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealEnabled);
 				return position.equals(selection.getPosition()) ? selection : Selection.fromPositions(position);
 			});
 		}

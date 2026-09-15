@@ -1002,8 +1002,7 @@ export interface ITextModel {
 	revealConcealedText(lineNumber: number, startColumn: number, endColumn: number): void;
 
 	/**
-	 * Reports where a cursor owner's carets are. A revealed range stays revealed while a reported
-	 * caret is inside it or at either end; an empty list withdraws the owner.
+	 * Reports where a cursor owner's carets are, which hold revealed ranges open; an empty list withdraws the owner.
 	 * @internal
 	 */
 	keepConcealedTextRevealedAt(owner: object, positions: readonly IPosition[]): void;

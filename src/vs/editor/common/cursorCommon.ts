@@ -80,7 +80,7 @@ export class CursorConfiguration {
 	public readonly shouldAutoCloseBefore: { quote: (ch: string) => boolean; bracket: (ch: string) => boolean; comment: (ch: string) => boolean };
 	public readonly wordSegmenterLocales: string[];
 	public readonly overtypeOnPaste: boolean;
-	public readonly concealedText: boolean;
+	public readonly concealEnabled: boolean;
 
 	private readonly _languageId: string;
 	private _electricChars: { [key: string]: boolean } | null;
@@ -146,7 +146,7 @@ export class CursorConfiguration {
 		this.autoIndent = options.get(EditorOption.autoIndent);
 		this.wordSegmenterLocales = options.get(EditorOption.wordSegmenterLocales);
 		this.overtypeOnPaste = options.get(EditorOption.overtypeOnPaste);
-		this.concealedText = options.get(EditorOption.conceal).enabled;
+		this.concealEnabled = options.get(EditorOption.conceal).enabled;
 
 		this.surroundingPairs = {};
 		this._electricChars = null;
@@ -354,9 +354,7 @@ export class SingleCursorState {
 		public readonly position: Position,
 		public readonly leftoverVisibleColumns: number,
 		/**
-		 * The direction of the move that produced this state, if any. Decides which end of a
-		 * concealed range the caret is on when the range's cursor stop is `Auto`. Not part of
-		 * {@link equals}.
+		 * The direction of the move that produced this state, if any; not part of {@link equals}.
 		 */
 		public readonly positionAffinity: PositionAffinity = PositionAffinity.None,
 	) {
