@@ -12,7 +12,7 @@ import { FontInfo } from './config/fontInfo.js';
 import { Position } from './core/position.js';
 import { OffsetRange } from './core/ranges/offsetRange.js';
 import { ConcealedTextAnchor, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
-import { LineConcealedText, LineInjectedText } from './textModelEvents.js';
+import { LineConcealedText, LineInjectedText, LineProjectedText } from './textModelEvents.js';
 import { LineTokens, TokenArray, TokenInfo } from './tokens/lineTokens.js';
 
 /**
@@ -707,8 +707,7 @@ export class OutputPosition {
 
 export interface ILineBreaksComputerContext {
 	getLineContent(lineNumber: number): string;
-	getLineInjectedText(lineNumber: number): LineInjectedText[] | null;
-	getLineConcealedText(lineNumber: number): LineConcealedText[] | null;
+	getLineProjectedText(lineNumber: number): LineProjectedText;
 }
 
 export interface ILineBreaksComputerFactory {

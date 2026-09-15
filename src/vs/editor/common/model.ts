@@ -19,7 +19,7 @@ import { IWordAtPosition } from './core/wordHelper.js';
 import { FormattingOptions } from './languages.js';
 import { ILanguageSelection } from './languages/language.js';
 import { IBracketPairsTextModelPart } from './textModelBracketPairs.js';
-import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelLanguageChangedEvent, IModelLanguageConfigurationChangedEvent, IModelOptionsChangedEvent, IModelTokensChangedEvent, LineConcealedText, LineInjectedText, ModelFontChangedEvent, ModelLineHeightChangedEvent } from './textModelEvents.js';
+import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelLanguageChangedEvent, IModelLanguageConfigurationChangedEvent, IModelOptionsChangedEvent, IModelTokensChangedEvent, LineConcealedText, LineInjectedText, LineProjectedText, ModelFontChangedEvent, ModelLineHeightChangedEvent } from './textModelEvents.js';
 import { IModelContentChange } from './model/mirrorTextModel.js';
 import { IGuidesTextModelPart } from './textModelGuides.js';
 import { ITokenizationTextModelPart } from './tokenizationTextModelPart.js';
@@ -963,6 +963,12 @@ export interface ITextModel {
 	 * @internal
 	 */
 	getLineConcealedText(lineNumber: number, ownerId?: number): LineConcealedText[];
+
+	/**
+	 * Get the injected and the concealed text of a line in one decorations query.
+	 * @internal
+	 */
+	getLineProjectedText(lineNumber: number, ownerId?: number): LineProjectedText;
 
 	/**
 	 * Reveals the concealed text within the columns, until no caret is inside it or at either end.

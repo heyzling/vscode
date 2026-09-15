@@ -10,7 +10,7 @@ import { assertReturnsDefined } from '../../../base/common/types.js';
 import { applyFontInfo } from '../config/domFontInfo.js';
 import { WrappingIndent } from '../../common/config/editorOptions.js';
 import { StringBuilder } from '../../common/core/stringBuilder.js';
-import { applyProjectedLineChanges, computeProjectedLineChanges, ILineBreaksComputer, ILineBreaksComputerContext, ILineBreaksComputerFactory, ModelLineProjectionData } from '../../common/modelLineProjectionData.js';
+import { applyProjectedLineChanges, computeProjectedLineChanges, ILineBreaksComputer, ILineBreaksComputerContext, ILineBreaksComputerFactory, IProjectedLineChanges, ModelLineProjectionData } from '../../common/modelLineProjectionData.js';
 import { FontInfo } from '../../common/config/fontInfo.js';
 
 const ttPolicy = createTrustedTypesPolicy('domLineBreaksComputer', { createHTML: value => value });
@@ -37,9 +37,14 @@ export class DOMLineBreaksComputerFactory implements ILineBreaksComputerFactory 
 	}
 }
 
+function projectedLineChanges(context: ILineBreaksComputerContext, lineNumber: number): IProjectedLineChanges {
+	const { injectedText, concealedText } = context.getLineProjectedText(lineNumber);
+	return computeProjectedLineChanges(injectedText, concealedText, context.getLineContent(lineNumber));
+}
+
 function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerContext, lineNumbers: number[], fontInfo: FontInfo, tabSize: number, firstLineBreakColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): (ModelLineProjectionData | null)[] {
 	function createEmptyLineBreakWithPossiblyInjectedText(lineNumber: number): ModelLineProjectionData | null {
-		const changes = computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber));
+		const changes = projectedLineChanges(context, lineNumber);
 		if (changes.injectionOptions || changes.concealOffsets) {
 			const lineText = applyProjectedLineChanges(context.getLineContent(lineNumber), changes);
 
@@ -75,7 +80,7 @@ function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerCont
 	const allVisibleColumns: number[][] = [];
 	for (let i = 0; i < lineNumbers.length; i++) {
 		const lineNumber = lineNumbers[i];
-		const lineContent = applyProjectedLineChanges(context.getLineContent(lineNumber), computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber)));
+		const lineContent = applyProjectedLineChanges(context.getLineContent(lineNumber), projectedLineChanges(context, lineNumber));
 
 		let firstNonWhitespaceIndex = 0;
 		let wrappedTextIndentLength = 0;
@@ -165,7 +170,7 @@ function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerCont
 			}
 		}
 
-		const changes = computeProjectedLineChanges(context.getLineInjectedText(lineNumber), context.getLineConcealedText(lineNumber), context.getLineContent(lineNumber));
+		const changes = projectedLineChanges(context, lineNumber);
 
 		result[i] = new ModelLineProjectionData(changes.injectionOffsets, changes.injectionOptions, breakOffsets, breakOffsetsVisibleColumn, wrappedTextIndentLength, changes.concealOffsets, changes.concealLengths, changes.concealStops);
 	}

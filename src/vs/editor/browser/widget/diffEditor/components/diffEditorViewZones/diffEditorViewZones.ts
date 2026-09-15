@@ -168,11 +168,8 @@ export class DiffEditorViewZones extends Disposable {
 				getLineContent: (lineNumber: number): string => {
 					return this._editors.original.getModel()!.getLineContent(lineNumber);
 				},
-				getLineInjectedText: (lineNumber: number) => {
-					return null;
-				},
-				getLineConcealedText: (lineNumber: number) => {
-					return null;
+				getLineProjectedText: (lineNumber: number) => {
+					return { injectedText: null, concealedText: null };
 				}
 			};
 			const deletedCodeLineBreaksComputer = !renderSideBySide ? this._editors.modified._getViewModel()?.createLineBreaksComputer(context) : undefined;

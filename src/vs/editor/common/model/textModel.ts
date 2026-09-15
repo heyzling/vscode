@@ -37,7 +37,7 @@ import { ILanguageConfigurationService } from '../languages/languageConfiguratio
 import * as model from '../model.js';
 import { IBracketPairsTextModelPart } from '../textModelBracketPairs.js';
 import { EditSources, TextModelEditSource } from '../textModelEditSource.js';
-import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelOptionsChangedEvent, InternalModelContentChangeEvent, LineConcealedText, LineInjectedText, ModelFontChanged, ModelFontChangedEvent, ModelInjectedTextChangedEvent, ModelLineHeightChanged, ModelLineHeightChangedEvent, ModelRawChange, ModelRawContentChangedEvent, ModelRawEOLChanged, ModelRawFlush, ModelRawLineChanged, ModelRawLinesDeleted, ModelRawLinesInserted } from '../textModelEvents.js';
+import { IModelContentChangedEvent, IModelDecorationsChangedEvent, IModelOptionsChangedEvent, InternalModelContentChangeEvent, LineConcealedText, LineInjectedText, LineProjectedText, ModelFontChanged, ModelFontChangedEvent, ModelInjectedTextChangedEvent, ModelLineHeightChanged, ModelLineHeightChangedEvent, ModelRawChange, ModelRawContentChangedEvent, ModelRawEOLChanged, ModelRawFlush, ModelRawLineChanged, ModelRawLinesDeleted, ModelRawLinesInserted } from '../textModelEvents.js';
 import { IGuidesTextModelPart } from '../textModelGuides.js';
 import { ITokenizationTextModelPart } from '../tokenizationTextModelPart.js';
 import { LineTokens, TokenArray } from '../tokens/lineTokens.js';
@@ -1853,23 +1853,35 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 	}
 
 	public getLineInjectedText(lineNumber: number, ownerId: number = 0): LineInjectedText[] {
-		const startOffset = this._buffer.getOffsetAt(lineNumber, 1);
-		const endOffset = startOffset + this._buffer.getLineLength(lineNumber);
-
-		const result = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
+		const result = this._getLineInjectedTextDecorations(lineNumber, ownerId);
 		return LineInjectedText.fromDecorations(result).filter(t => t.lineNumber === lineNumber);
 	}
 
 	public getLineConcealedText(lineNumber: number, ownerId: number = 0): LineConcealedText[] {
+		return this._getLineConcealedText(lineNumber, this._getLineInjectedTextDecorations(lineNumber, ownerId));
+	}
+
+	public getLineProjectedText(lineNumber: number, ownerId: number = 0): LineProjectedText {
+		const decorations = this._getLineInjectedTextDecorations(lineNumber, ownerId);
+		return {
+			injectedText: LineInjectedText.fromDecorations(decorations).filter(t => t.lineNumber === lineNumber),
+			concealedText: this._getLineConcealedText(lineNumber, decorations),
+		};
+	}
+
+	// Concealing decorations live in the injected text tree: one search serves both.
+	private _getLineInjectedTextDecorations(lineNumber: number, ownerId: number): model.IModelDecoration[] {
 		const startOffset = this._buffer.getOffsetAt(lineNumber, 1);
 		const endOffset = startOffset + this._buffer.getLineLength(lineNumber);
+		return this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
+	}
 
-		let result = this._decorationsTree.getInjectedTextInInterval(this, startOffset, endOffset, ownerId);
+	private _getLineConcealedText(lineNumber: number, decorations: model.IModelDecoration[]): LineConcealedText[] {
 		if (this._concealRevealedSpans.length > 0) {
 			const spans = this._concealRevealedSpanRanges();
-			result = result.filter(d => !spans.some(span => Range.areIntersecting(span, d.range)));
+			decorations = decorations.filter(d => !spans.some(span => Range.areIntersecting(span, d.range)));
 		}
-		return LineConcealedText.fromDecorations(result, lineNumber);
+		return LineConcealedText.fromDecorations(decorations, lineNumber);
 	}
 
 	// Revealed spans, as tracked ranges: kept while a reported caret is inside one or at its end.

@@ -17,7 +17,7 @@ import { ILineBreaksComputer, ModelLineProjectionData, InjectedText, ILineBreaks
 import { ConstantTimePrefixSumComputer } from '../model/prefixSumComputer.js';
 import { ViewLineData } from '../viewModel.js';
 import { ICoordinatesConverter, IdentityCoordinatesConverter } from '../coordinatesConverter.js';
-import { LineConcealedText, LineInjectedText } from '../textModelEvents.js';
+import { LineProjectedText } from '../textModelEvents.js';
 
 export interface IViewModelLines extends IDisposable {
 	createCoordinatesConverter(): ICoordinatesConverter;
@@ -321,14 +321,9 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 			getLineContent: (lineNumber: number): string => {
 				return this.model.getLineContent(lineNumber);
 			},
-			getLineInjectedText: (lineNumber: number): LineInjectedText[] => {
-				return this.model.getLineInjectedText(lineNumber, this._editorId);
-			},
-			getLineConcealedText: (lineNumber: number): LineConcealedText[] | null => {
-				if (!this.conceal.enabled) {
-					return null;
-				}
-				return this.model.getLineConcealedText(lineNumber, this._editorId);
+			getLineProjectedText: (lineNumber: number): LineProjectedText => {
+				const projectedText = this.model.getLineProjectedText(lineNumber, this._editorId);
+				return this.conceal.enabled ? projectedText : { injectedText: projectedText.injectedText, concealedText: null };
 			}
 		};
 		return lineBreaksComputerFactory.createLineBreaksComputer(context, this.fontInfo, this.tabSize, this.wrappingColumn, this.wrappingIndent, this.wordBreak, this.wrapOnEscapedLineFeeds);

@@ -38,8 +38,7 @@ export class MonospaceLineBreaksComputerFactory implements ILineBreaksComputerFa
 				const result: (ModelLineProjectionData | null)[] = [];
 				for (let i = 0, len = lineNumbers.length; i < len; i++) {
 					const lineNumber = lineNumbers[i];
-					const injectedText = context.getLineInjectedText(lineNumber);
-					const concealedText = context.getLineConcealedText(lineNumber);
+					const { injectedText, concealedText } = context.getLineProjectedText(lineNumber);
 					const lineText = context.getLineContent(lineNumber);
 					const previousLineBreakData = previousBreakingData[i];
 					const isLineFeedWrappingEnabled = wrapOnEscapedLineFeeds && lineText.includes('"') && lineText.includes('\\n');

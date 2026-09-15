@@ -311,6 +311,9 @@ export class LineConcealedText {
 	 * Ranges spanning multiple lines are not concealed.
 	 */
 	public static fromDecorations(decorations: IModelDecoration[], lineNumber: number): LineConcealedText[] {
+		if (decorations.length === 0) {
+			return [];
+		}
 		const result: LineConcealedText[] = [];
 		for (const decoration of decorations) {
 			if (!decoration.options.concealedText) {
@@ -361,6 +364,15 @@ export class LineConcealedText {
 	private withStartColumn(startColumn: number): LineConcealedText {
 		return new LineConcealedText(this.ownerId, this.lineNumber, startColumn, this.endColumn, this.options);
 	}
+}
+
+/**
+ * The injected and the concealed text of a line, read in one decorations query.
+ * @internal
+ */
+export interface LineProjectedText {
+	readonly injectedText: LineInjectedText[] | null;
+	readonly concealedText: LineConcealedText[] | null;
 }
 
 /**
