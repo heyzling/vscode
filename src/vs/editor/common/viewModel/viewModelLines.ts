@@ -115,7 +115,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 	}
 
 	public dispose(): void {
-		this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], [])) ?? [];
+		this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, []);
 	}
 
 	public createCoordinatesConverter(): ICoordinatesConverter {
@@ -126,7 +126,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 		this.modelLineProjections = [];
 
 		if (resetHiddenAreas) {
-			this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], [])) ?? [];
+			this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, []);
 		}
 
 		const linesContent = this.model.getLinesContent();
@@ -203,8 +203,7 @@ export class ViewModelLinesFromProjectedModel implements IViewModelLines {
 			})
 		);
 
-		// Through the accessor: hidden areas may change inside a decorations transaction.
-		this.hiddenAreasDecorationIds = this.model.changeDecorations(accessor => accessor.deltaDecorations(this.hiddenAreasDecorationIds ?? [], newDecorations)) ?? this.hiddenAreasDecorationIds;
+		this.hiddenAreasDecorationIds = this.model.deltaDecorations(this.hiddenAreasDecorationIds, newDecorations);
 
 		const hiddenAreas = newRanges;
 		let hiddenAreaStart = 1, hiddenAreaEnd = 0;

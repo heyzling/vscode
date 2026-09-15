@@ -6820,6 +6820,24 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
+	test('Home reads the model line, not the view columns a concealed range shifts', () => {
+		// `^ab12cd` hidden at columns 1..8: the view line starts with the two spaces, the model line with the id.
+		withHiddenId('^ab12cd  text', new Range(1, 1, 1, 8), ConcealedTextAnchor.Auto, (editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 14);
+			assert.deepStrictEqual(viewModel.getCursorStates()[0].viewState.position, new Position(1, 7), 'the caret sits past the range, at a view column short of its model column');
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'the model line\'s first non-blank column, in front of the hidden id');
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'and it stays there');
+		});
+
+		withConcealedRange(ID_LINE, ID, { anchor: ConcealedTextAnchor.LineStart }, {}, (editor, viewModel) => {
+			moveTo(editor, viewModel, 1, 14);
+			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 9), 'a line-anchored id keeps its one stop');
+		});
+	});
+
 	test('leaves a caret aimed at it collapsed', () => {
 		// A bare caret, not a selection over the range: Home then Tab used to delete it.
 		for (const anchor of [ConcealedTextAnchor.After, ConcealedTextAnchor.Before]) {
