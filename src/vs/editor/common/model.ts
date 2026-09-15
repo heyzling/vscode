@@ -406,6 +406,31 @@ export interface ConcealedTextOptions {
 	 * Defaults to {@link ConcealedTextAnchor.Auto}.
 	 */
 	readonly anchor?: ConcealedTextAnchor;
+
+	/**
+	 * The end of the range a caret at it stands on, set from {@link anchor} and {@link replacement}
+	 * when the decoration enters a model; see {@link concealedTextCaretStop}.
+	 */
+	readonly caretStop?: ConcealedTextAnchor;
+}
+
+/**
+ * The end of a concealed range a caret at it stands on: {@link ConcealedTextAnchor.Before},
+ * {@link ConcealedTextAnchor.After}, or {@link ConcealedTextAnchor.Auto} for the end the caret
+ * was travelling towards.
+ * @internal
+ */
+export function concealedTextCaretStop(options: ConcealedTextOptions): ConcealedTextAnchor {
+	if (options.caretStop !== undefined) {
+		return options.caretStop;
+	}
+	const anchor = options.anchor ?? ConcealedTextAnchor.Auto;
+	const hasReplacement = !!options.replacement && options.replacement.content.length > 0;
+	// Line metadata has one stop, on the side of its text; a drawn range has a side per end.
+	return anchor === ConcealedTextAnchor.LineStart ? ConcealedTextAnchor.After
+		: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextAnchor.Before
+			: hasReplacement ? ConcealedTextAnchor.After
+				: anchor;
 }
 
 /**

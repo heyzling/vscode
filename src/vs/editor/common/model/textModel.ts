@@ -2590,6 +2590,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 	readonly anchor: model.ConcealedTextAnchor;
 	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
+	readonly caretStop: model.ConcealedTextAnchor;
 
 	private constructor(options: model.ConcealedTextOptions) {
 		let replacement = options.replacement ?? null;
@@ -2601,6 +2602,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 		this.anchor = options.anchor ?? model.ConcealedTextAnchor.Auto;
 		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
+		this.caretStop = model.concealedTextCaretStop({ anchor: this.anchor, replacement: this.replacement });
 	}
 }
 

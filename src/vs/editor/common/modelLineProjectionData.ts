@@ -11,7 +11,7 @@ import { WrappingIndent } from './config/editorOptions.js';
 import { FontInfo } from './config/fontInfo.js';
 import { Position } from './core/position.js';
 import { OffsetRange } from './core/ranges/offsetRange.js';
-import { ConcealedTextAnchor, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
+import { ConcealedTextAnchor, concealedTextCaretStop, InjectedTextCursorStops, InjectedTextOptions, PositionAffinity } from './model.js';
 import { LineConcealedText, LineInjectedText, LineProjectedText } from './textModelEvents.js';
 import { LineTokens, TokenArray, TokenInfo } from './tokens/lineTokens.js';
 
@@ -633,15 +633,7 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 				: replacement);
 		}
 
-		// Line metadata has one stop, on the side of its text, drawn or not. Any other range
-		// with a replacement has a side per end; it carries `After` and the stop never fires.
-		const anchor = concealedText.options.anchor ?? ConcealedTextAnchor.Auto;
-		concealStops.push(
-			anchor === ConcealedTextAnchor.LineStart ? ConcealedTextAnchor.After
-				: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextAnchor.Before
-					: hasReplacement ? ConcealedTextAnchor.After
-						: anchor
-		);
+		concealStops.push(concealedTextCaretStop(concealedText.options));
 	}
 
 	for (; injectionIndex < injections.length; injectionIndex++) {

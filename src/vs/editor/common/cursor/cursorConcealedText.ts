@@ -5,7 +5,7 @@
 
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
-import { ConcealedTextAnchor, ConcealedTextDeletionPolicy, ConcealedTextOptions } from '../model.js';
+import { ConcealedTextAnchor, concealedTextCaretStop, ConcealedTextDeletionPolicy, ConcealedTextOptions } from '../model.js';
 import { LineConcealedText } from '../textModelEvents.js';
 
 /**
@@ -152,29 +152,20 @@ function columnOutsideConcealedText(model: IConcealAwareModel, lineNumber: numbe
 
 /**
  * The end of a concealed range a caret column belongs on. With a replacement only a column
- * strictly inside moves; with nothing drawn the anchor decides which end the one place is.
+ * strictly inside moves; with nothing drawn the caret stop decides which end the one place is.
  */
 function caretColumnOutsideConcealedText(model: IConcealAwareModel, lineNumber: number, column: number): number {
 	for (const concealed of model.getLineConcealedText(lineNumber)) {
-		const anchor = concealed.options.anchor ?? ConcealedTextAnchor.Auto;
+		const stop = concealedTextCaretStop(concealed.options);
 		const inside = column > concealed.startColumn && column < concealed.endColumn;
 		const atOrInside = column >= concealed.startColumn && column <= concealed.endColumn;
-		if (isLineAnchored(concealed.options)) {
-			// One stop on the side of the range's text, drawn or not.
-			if (atOrInside) {
-				return anchor === ConcealedTextAnchor.LineStart ? concealed.endColumn : concealed.startColumn;
-			}
-			continue;
-		}
-		if (hasReplacement(concealed.options) || anchor === ConcealedTextAnchor.Auto) {
+		if (!isLineAnchored(concealed.options) && (hasReplacement(concealed.options) || stop === ConcealedTextAnchor.Auto)) {
 			// A side per end, or a side resolved when the caret moved: a caret at either end stays.
 			if (inside) {
 				return concealed.endColumn;
 			}
-			continue;
-		}
-		if (atOrInside) {
-			return anchor === ConcealedTextAnchor.Before ? concealed.startColumn : concealed.endColumn;
+		} else if (atOrInside) {
+			return stop === ConcealedTextAnchor.Before ? concealed.startColumn : concealed.endColumn;
 		}
 	}
 	return column;
@@ -272,18 +263,21 @@ export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', p
 	for (let moved = true; moved;) {
 		moved = false;
 		for (const concealed of model.getLineConcealedText(position.lineNumber)) {
-			const anchor = concealed.options.anchor ?? ConcealedTextAnchor.Auto;
-			if (anchor === ConcealedTextAnchor.LineStart && column === concealed.endColumn) {
-				column = concealed.startColumn;
-				lineStart = moved = true;
-			} else if (anchor === ConcealedTextAnchor.LineEnd && edit === 'lineBreak' && column === concealed.startColumn) {
-				column = concealed.endColumn;
-				moved = true;
+			const stop = concealedTextCaretStop(concealed.options);
+			if (isLineAnchored(concealed.options)) {
+				// `After` is a line-start range, `Before` a line-end one.
+				if (stop === ConcealedTextAnchor.After && column === concealed.endColumn) {
+					column = concealed.startColumn;
+					lineStart = moved = true;
+				} else if (stop === ConcealedTextAnchor.Before && edit === 'lineBreak' && column === concealed.startColumn) {
+					column = concealed.endColumn;
+					moved = true;
+				}
 			} else if (!hasReplacement(concealed.options)) {
-				if (anchor === ConcealedTextAnchor.After && column === concealed.endColumn) {
+				if (stop === ConcealedTextAnchor.After && column === concealed.endColumn) {
 					column = concealed.startColumn;
 					moved = true;
-				} else if (anchor === ConcealedTextAnchor.Before && column === concealed.startColumn) {
+				} else if (stop === ConcealedTextAnchor.Before && column === concealed.startColumn) {
 					column = concealed.endColumn;
 					moved = true;
 				}
