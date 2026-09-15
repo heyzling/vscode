@@ -1981,11 +1981,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			const oldRange = this.getDecorationRange(decorationId);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(oldRange!.endLineNumber);
 		}
-		if (node.options.before) {
-			const oldRange = this.getDecorationRange(decorationId);
-			this._onDidChangeDecorations.recordLineAffectedByInjectedText(oldRange!.startLineNumber);
-		}
-		if (node.options.concealedText) {
+		if (node.options.before || node.options.concealedText) {
 			const oldRange = this.getDecorationRange(decorationId);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(oldRange!.startLineNumber);
 		}
@@ -2010,10 +2006,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 		if (node.options.after) {
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.endLineNumber);
 		}
-		if (node.options.before) {
-			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
-		}
-		if (node.options.concealedText) {
+		if (node.options.before || node.options.concealedText) {
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
 		}
 		if (node.options.lineHeight !== null) {
@@ -2040,11 +2033,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 			const nodeRange = this._decorationsTree.getNodeRange(this, node);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.endLineNumber);
 		}
-		if (node.options.before || options.before) {
-			const nodeRange = this._decorationsTree.getNodeRange(this, node);
-			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
-		}
-		if (node.options.concealedText || options.concealedText) {
+		if (node.options.before || options.before || node.options.concealedText || options.concealedText) {
 			const nodeRange = this._decorationsTree.getNodeRange(this, node);
 			this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
 		}
@@ -2098,11 +2087,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 							const nodeRange = this._decorationsTree.getNodeRange(this, node);
 							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.endLineNumber);
 						}
-						if (node.options.before) {
-							const nodeRange = this._decorationsTree.getNodeRange(this, node);
-							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
-						}
-						if (node.options.concealedText) {
+						if (node.options.before || node.options.concealedText) {
 							const nodeRange = this._decorationsTree.getNodeRange(this, node);
 							this._onDidChangeDecorations.recordLineAffectedByInjectedText(nodeRange.startLineNumber);
 						}
@@ -2145,10 +2130,7 @@ export class TextModel extends Disposable implements model.ITextModel, IDecorati
 					if (node.options.after) {
 						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.endLineNumber);
 					}
-					if (node.options.before) {
-						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
-					}
-					if (node.options.concealedText) {
+					if (node.options.before || node.options.concealedText) {
 						this._onDidChangeDecorations.recordLineAffectedByInjectedText(range.startLineNumber);
 					}
 					if (node.options.lineHeight !== null) {
