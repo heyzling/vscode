@@ -336,6 +336,27 @@ app.on('ready', () => {
 		}
 	});
 
+	// VSCODE_PERF_CONCEALED_TEXT_PROFILE: the concealed-text perf test asks for a V8 CPU profile of a code
+	// section over IPC; the renderer has no in-process inspector, so the profiler is driven from here.
+	if (process.env.VSCODE_PERF_CONCEALED_TEXT_PROFILE) {
+		const profileDir = process.env.VSCODE_PERF_CONCEALED_TEXT_PROFILE;
+		ipcMain.handle('vscode:perfProfile', async (_event, action, tag) => {
+			const dbg = win.webContents.debugger;
+			if (!dbg.isAttached()) {
+				dbg.attach('1.3');
+				await dbg.sendCommand('Profiler.enable');
+				await dbg.sendCommand('Profiler.setSamplingInterval', { interval: 100 });
+			}
+			if (action === 'start') {
+				await dbg.sendCommand('Profiler.start');
+				return;
+			}
+			const { profile } = await dbg.sendCommand('Profiler.stop');
+			mkdirSync(profileDir, { recursive: true });
+			await promises.writeFile(path.join(profileDir, `${tag}.cpuprofile`), JSON.stringify(profile));
+		});
+	}
+
 	win.webContents.on('did-finish-load', () => {
 		if (args.dev) {
 			win.show();

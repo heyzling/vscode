@@ -35,7 +35,23 @@ function perfSuite(name: string, callback: (this: Mocha.Suite) => void): void {
 }
 
 const VIEWPORT_LINES = 50;
-const KEYSTROKES = 200;
+// Set VSCODE_PERF_CONCEALED_TEXT_PROFILE to a directory to write a V8 CPU profile of each measured pass's
+// keystroke loop there, taken by the test runner's main process over IPC; the timings of such a run are
+// not comparable to a plain one.
+const profileDir = typeof process !== 'undefined' ? process.env.VSCODE_PERF_CONCEALED_TEXT_PROFILE : undefined;
+const KEYSTROKES = profileDir ? 2000 : 200;
+
+async function profileKeystrokes(tag: string | undefined, run: () => void): Promise<void> {
+	const nodeRequire = (globalThis as { require?: (id: string) => unknown }).require;
+	if (!profileDir || !tag || typeof nodeRequire !== 'function') {
+		run();
+		return;
+	}
+	const { ipcRenderer } = nodeRequire('electron') as { ipcRenderer: { invoke(channel: string, ...args: unknown[]): Promise<unknown> } };
+	await ipcRenderer.invoke('vscode:perfProfile', 'start');
+	run();
+	await ipcRenderer.invoke('vscode:perfProfile', 'stop', tag.replace(/[^\w.-]+/g, '-'));
+}
 const CARET_LINES = 50;
 const WARMUP_PASSES = 2;
 const MEASURED_PASSES = 5;
@@ -103,7 +119,7 @@ function decorationsFor(scenario: Scenario, lines: string[]): IModelDeltaDecorat
 	return result;
 }
 
-function measure(scenario: Scenario, lines: string[]): Result {
+async function measure(scenario: Scenario, lines: string[], profileTag?: string): Promise<Result> {
 	const disposables = new DisposableStore();
 	const instantiationService = createModelServices(disposables);
 	const options: IEditorOptions = {
@@ -152,14 +168,16 @@ function measure(scenario: Scenario, lines: string[]): Result {
 	// A keystroke in visible text just past the id, on lines spread over the file.
 	const step = Math.max(1, Math.floor(lines.length / KEYSTROKES));
 	sw.reset();
-	for (let i = 0; i < KEYSTROKES; i++) {
-		const lineNumber = 1 + i * step;
-		const column = lines[lineNumber - 1].indexOf('{ID:') + 14;
-		viewModel.setSelections('test', [new Selection(lineNumber, column, lineNumber, column)]);
-		viewModel.type('x', 'keyboard');
-		const viewPosition = viewModel.coordinatesConverter.convertModelPositionToViewPosition(viewModel.getPosition());
-		viewModel.getViewLineRenderingData(viewPosition.lineNumber);
-	}
+	await profileKeystrokes(profileTag, () => {
+		for (let i = 0; i < KEYSTROKES; i++) {
+			const lineNumber = 1 + i * step;
+			const column = lines[lineNumber - 1].indexOf('{ID:') + 14;
+			viewModel.setSelections('test', [new Selection(lineNumber, column, lineNumber, column)]);
+			viewModel.type('x', 'keyboard');
+			const viewPosition = viewModel.coordinatesConverter.convertModelPositionToViewPosition(viewModel.getPosition());
+			viewModel.getViewLineRenderingData(viewPosition.lineNumber);
+		}
+	});
 	const typeMs = sw.elapsed() / KEYSTROKES;
 
 	// The caret walks a whole line, crossing the concealed range.
@@ -212,10 +230,10 @@ perfSuite('Performance - concealed text', function () {
 	const results: Result[] = [];
 
 	for (const scenario of scenarios) {
-		test(scenario.name, () => {
+		test(scenario.name, async () => {
 			const runs: Result[] = [];
 			for (let pass = 0; pass < WARMUP_PASSES + MEASURED_PASSES; pass++) {
-				const run = measure(scenario, lines);
+				const run = await measure(scenario, lines, pass >= WARMUP_PASSES ? `${scenario.name}.pass${pass - WARMUP_PASSES + 1}` : undefined);
 				if (pass >= WARMUP_PASSES) {
 					runs.push(run);
 				}
