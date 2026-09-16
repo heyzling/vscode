@@ -178,7 +178,7 @@ suite('ExtHostTypeConverter', function () {
 		assert.strictEqual(first2.textEdit.insertAsSnippet, true);
 	});
 
-	test('ConcealRenderOptions - a replacement keeps its content, with line feeds dropped', function () {
+	test('ConcealRenderOptions - a replacement keeps its content', function () {
 		const long = ConcealRenderOptions.from({ replacement: { contentText: 'a' + '\u{1F3AF}'.repeat(20) } });
 		assert.strictEqual(long.replacement!.contentText, 'a' + '\u{1F3AF}'.repeat(20));
 

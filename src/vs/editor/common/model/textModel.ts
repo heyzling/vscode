@@ -2576,7 +2576,7 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 
 	private constructor(options: model.ConcealedTextOptions) {
 		let replacement = options.replacement ?? null;
-		// A replacement is drawn on one line; the `includes` tests keep the regex off the common path.
+		// A replacement is drawn on one line.
 		if (replacement && (replacement.content.includes('\n') || replacement.content.includes('\r'))) {
 			replacement = { ...replacement, content: replacement.content.replace(/[\r\n]/g, '') };
 		}
