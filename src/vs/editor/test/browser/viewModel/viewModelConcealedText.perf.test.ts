@@ -64,9 +64,12 @@ const scenarios: Scenario[] = [
 	{ name: 'conceal on, glyph per line', conceal: true, wrap: false, decorations: 'glyphs' },
 	{ name: 'conceal on, injected glyph per line', conceal: true, wrap: false, decorations: 'injected glyphs' },
 	{ name: 'conceal off, css-hidden id per line', conceal: false, wrap: false, decorations: 'css ids' },
+	{ name: 'conceal on, css-hidden id per line', conceal: true, wrap: false, decorations: 'css ids' },
 	{ name: 'wrap, conceal off', conceal: false, wrap: true, decorations: 'none' },
 	{ name: 'wrap, conceal on, nothing concealed', conceal: true, wrap: true, decorations: 'none' },
 	{ name: 'wrap, conceal on, hidden id per line', conceal: true, wrap: true, decorations: 'hidden ids' },
+	{ name: 'wrap, conceal on, injected glyph per line', conceal: true, wrap: true, decorations: 'injected glyphs' },
+	{ name: 'wrap, conceal on, glyph per line', conceal: true, wrap: true, decorations: 'glyphs' },
 ];
 
 function fixtureLine(i: number): string {
