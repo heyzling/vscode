@@ -58,9 +58,9 @@ suite('Decoration Render Options', () => {
 	});
 	test('a conceal anchor reaches the model, with or without a replacement', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));
-		store.add(s.registerDecorationType('test', 'conceal-anchor-start', { conceal: { anchor: 'lineStart' } }));
+		store.add(s.registerDecorationType('test', 'conceal-anchor-after', { conceal: { anchor: 'after' } }));
 		store.add(s.registerDecorationType('test', 'conceal-anchor-end', { conceal: { anchor: 'lineEnd', replacement: { contentText: 'id' } } }));
-		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-start', false).concealedText?.anchor, ConcealedTextAnchor.LineStart);
+		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-after', false).concealedText?.anchor, ConcealedTextAnchor.After);
 		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-end', false).concealedText?.anchor, ConcealedTextAnchor.LineEnd);
 	});
 

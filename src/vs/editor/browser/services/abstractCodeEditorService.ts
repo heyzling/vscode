@@ -550,9 +550,8 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 		if (providerArgs.options.conceal) {
 			const anchor = providerArgs.options.conceal.anchor === 'before' ? ConcealedTextAnchor.Before
 				: providerArgs.options.conceal.anchor === 'after' ? ConcealedTextAnchor.After
-					: providerArgs.options.conceal.anchor === 'lineStart' ? ConcealedTextAnchor.LineStart
-						: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
-							: ConcealedTextAnchor.Auto;
+					: providerArgs.options.conceal.anchor === 'lineEnd' ? ConcealedTextAnchor.LineEnd
+						: ConcealedTextAnchor.Auto;
 			const deletionPolicy = providerArgs.options.conceal.deletionPolicy === 'protect' ? ConcealedTextDeletionPolicy.Protect
 				: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
 					: ConcealedTextDeletionPolicy.Atomic;

@@ -730,8 +730,7 @@ export enum ConcealAnchor {
 	Auto = 0,
 	Before = 1,
 	After = 2,
-	LineStart = 3,
-	LineEnd = 4
+	LineEnd = 3
 }
 
 export enum ConcealDeletionPolicy {

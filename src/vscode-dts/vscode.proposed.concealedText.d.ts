@@ -43,14 +43,13 @@ declare module 'vscode' {
 		preserveWidth?: boolean;
 
 		/**
-		 * Which text a concealed range belongs to. Fixes the one place the cursor stops at the
-		 * range, and where a line break or whitespace typed there lands. Typed characters land
-		 * at the stop. Defaults to {@link ConcealAnchor.Auto}.
+		 * Which text a concealed range belongs to. Fixes the one place the cursor stops at a
+		 * range with nothing drawn in its place, and where a line break or whitespace typed at
+		 * the stop lands. Typed characters land at the stop. Defaults to {@link ConcealAnchor.Auto}.
 		 *
-		 * {@link ConcealAnchor.Auto}, {@link ConcealAnchor.Before} and {@link ConcealAnchor.After}
-		 * are read only when nothing is drawn in the range's place, since a replacement has a
-		 * side per end; {@link ConcealAnchor.LineStart} and {@link ConcealAnchor.LineEnd} apply
-		 * drawn or not. A paste at the stop is split the same way at its line breaks.
+		 * A range with a replacement has a stop on each side of it; a line break or whitespace
+		 * typed at the stop on the anchor's side still lands past the range. A paste at the stop
+		 * is split the same way at its line breaks.
 		 */
 		anchor?: ConcealAnchor;
 
@@ -76,20 +75,15 @@ declare module 'vscode' {
 		 */
 		Before = 1,
 		/**
-		 * The text behind the range, as an opening delimiter. The stop is the range's end; a line
-		 * break or whitespace lands in front of the range.
+		 * The text behind the range, as an opening delimiter or a line prefix. The stop is the
+		 * range's end; a line break or whitespace lands in front of the range.
 		 */
 		After = 2,
 		/**
-		 * The whole line, as a prefix. As {@link ConcealAnchor.After}, but a line break moves the
-		 * line down with the range, and whitespace lands in front of the range.
+		 * The end of the line, as a suffix nothing follows. The stop is the range's start; a line
+		 * break lands behind the range, whitespace in front of it.
 		 */
-		LineStart = 3,
-		/**
-		 * The whole line, as a suffix. As {@link ConcealAnchor.Before}, but whitespace stays in
-		 * front of the range, so nothing follows it on its line.
-		 */
-		LineEnd = 4
+		LineEnd = 3
 	}
 
 	/**

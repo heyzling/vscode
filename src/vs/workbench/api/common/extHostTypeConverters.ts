@@ -565,7 +565,6 @@ export namespace ConcealAnchor {
 		switch (value) {
 			case types.ConcealAnchor.Before: return 'before';
 			case types.ConcealAnchor.After: return 'after';
-			case types.ConcealAnchor.LineStart: return 'lineStart';
 			case types.ConcealAnchor.LineEnd: return 'lineEnd';
 			default: return undefined;
 		}

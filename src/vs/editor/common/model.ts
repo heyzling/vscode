@@ -401,7 +401,8 @@ export interface ConcealedTextOptions {
 
 	/**
 	 * Which text the concealed range belongs to: which end of the range its one caret stop
-	 * stands for, and where a line break or whitespace typed there lands.
+	 * stands for when nothing is drawn, and where a line break or whitespace typed at that
+	 * stop lands, drawn or not.
 	 *
 	 * Defaults to {@link ConcealedTextAnchor.Auto}.
 	 */
@@ -426,11 +427,10 @@ export function concealedTextCaretStop(options: ConcealedTextOptions): Concealed
 	}
 	const anchor = options.anchor ?? ConcealedTextAnchor.Auto;
 	const hasReplacement = !!options.replacement && options.replacement.content.length > 0;
-	// Line metadata has one stop, on the side of its text; a drawn range has a side per end.
-	return anchor === ConcealedTextAnchor.LineStart ? ConcealedTextAnchor.After
+	// A drawn range has a side per end; a line suffix has its one stop in front, as a closing delimiter.
+	return hasReplacement ? ConcealedTextAnchor.After
 		: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextAnchor.Before
-			: hasReplacement ? ConcealedTextAnchor.After
-				: anchor;
+			: anchor;
 }
 
 /**
@@ -452,18 +452,14 @@ export enum ConcealedTextAnchor {
 	 */
 	Before,
 	/**
-	 * The text behind the range, as an opening delimiter. The stop is the range's end: typed
-	 * characters land behind the range, a line break or whitespace in front of it.
+	 * The text behind the range, as an opening delimiter or a line prefix. The stop is the
+	 * range's end: typed characters land behind the range, a line break or whitespace in front
+	 * of it.
 	 */
 	After,
 	/**
-	 * The line, from its first column. As {@link After}, but a line break typed at the stop goes
-	 * in front of the whole line, which moves down with the caret still at the stop.
-	 */
-	LineStart,
-	/**
-	 * The line, to its last column. As {@link Before}, but whitespace typed at the stop stays in
-	 * front of the range, so nothing follows it on its line.
+	 * The end of the line, as a suffix nothing follows. The stop is the range's start: typed
+	 * characters and whitespace land in front of the range, a line break behind it.
 	 */
 	LineEnd,
 }

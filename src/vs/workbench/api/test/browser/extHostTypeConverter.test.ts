@@ -185,7 +185,6 @@ suite('ExtHostTypeConverter', function () {
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Auto }).anchor, undefined, 'the default is left unsaid');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.Before }).anchor, 'before');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.After }).anchor, 'after', 'auto is the default, so a declared side must survive');
-		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.LineStart }).anchor, 'lineStart');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: extHostTypes.ConcealAnchor.LineEnd, replacement: { contentText: 'id' } }).anchor, 'lineEnd', 'an anchor survives beside a replacement');
 		assert.strictEqual(ConcealRenderOptions.from({ anchor: 99 as never }).anchor, undefined, 'an unknown value is dropped');
 
