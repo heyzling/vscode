@@ -131,15 +131,15 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('Home reads the model line, not the view columns a concealed range shifts', () => {
+	test('Home stops at the first visible non-blank, then at the line start', () => {
 		// `^ab12cd` hidden at columns 1..8: the view line starts with the two spaces, the model line with the id.
 		withHiddenId('^ab12cd  text', new Range(1, 1, 1, 8), ConcealedTextAnchor.Auto, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 14);
 			assert.deepStrictEqual(viewModel.getCursorStates()[0].viewState.position, new Position(1, 7), 'the caret sits past the range, at a view column short of its model column');
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
-			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'the model line\'s first non-blank column, in front of the hidden id');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 10), 'the first non-blank the view shows, not the hidden id');
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
-			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'and it stays there');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'then the line start, in front of the hidden id');
 		});
 
 		withConcealedRange(ID_LINE, ID, { anchor: ConcealedTextAnchor.LineStart }, {}, (editor, viewModel) => {
