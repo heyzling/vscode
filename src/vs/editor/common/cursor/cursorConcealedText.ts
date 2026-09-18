@@ -226,11 +226,10 @@ export function positionOutsideConcealedText(position: Position, model: object, 
 }
 
 /**
- * Where a line break or whitespace typed at the stop on a concealed range's anchored side goes:
- * past the range, outside the text it belongs to. At a line suffix only a line break goes past;
- * whitespace stays in front, so nothing follows the range on its line.
+ * Where a line break typed at the stop on a concealed range's anchored side goes: past the range,
+ * on the far side of the text it belongs to.
  */
-export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', position: Position, model: object, enabled: boolean): Position {
+export function lineBreakPositionPastConcealedText(position: Position, model: object, enabled: boolean): Position {
 	const concealedTexts = concealedTextOnLine(model, enabled, position.lineNumber);
 	const column = settle(position.column, column => {
 		for (const concealed of concealedTexts) {
@@ -238,8 +237,6 @@ export function positionPastConcealedTextFor(edit: 'lineBreak' | 'whitespace', p
 			if (anchor === ConcealedTextAnchor.After && column === concealed.endColumn) {
 				column = concealed.startColumn;
 			} else if (anchor === ConcealedTextAnchor.Before && column === concealed.startColumn) {
-				column = concealed.endColumn;
-			} else if (anchor === ConcealedTextAnchor.LineEnd && edit === 'lineBreak' && column === concealed.startColumn) {
 				column = concealed.endColumn;
 			}
 		}

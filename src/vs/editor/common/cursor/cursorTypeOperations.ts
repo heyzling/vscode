@@ -11,7 +11,6 @@ import { Selection } from '../core/selection.js';
 import { Position } from '../core/position.js';
 import { ICommand } from '../editorCommon.js';
 import { ITextModel } from '../model.js';
-import { positionPastConcealedTextFor } from './cursorConcealedText.js';
 import { AutoClosingOpenCharTypeOperation, AutoClosingOvertypeOperation, AutoClosingOvertypeWithInterceptorsOperation, AutoIndentOperation, CompositionOperation, CompositionEndOvertypeOperation, EnterOperation, InterceptorElectricCharOperation, PasteOperation, shiftIndent, shouldSurroundChar, SimpleCharacterTypeOperation, SurroundSelectionOperation, TabOperation, TypeWithoutInterceptorsOperation, unshiftIndent } from './cursorTypeEditOperations.js';
 
 export class TypeOperations {
@@ -164,16 +163,6 @@ export class TypeOperations {
 	}
 
 	public static typeWithInterceptors(isDoingComposition: boolean, prevEditOperationType: EditOperationType, config: CursorConfiguration, model: ITextModel, selections: Selection[], autoClosedCharacters: Range[], ch: string): EditOperationResult {
-
-		if (ch === ' ' || ch === '\t') {
-			selections = selections.map(selection => {
-				if (!selection.isEmpty()) {
-					return selection;
-				}
-				const position = positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealEnabled);
-				return position.equals(selection.getPosition()) ? selection : Selection.fromPositions(position);
-			});
-		}
 
 		const enterEdits = EnterOperation.getEdits(config, model, selections, ch, isDoingComposition);
 		if (enterEdits !== undefined) {

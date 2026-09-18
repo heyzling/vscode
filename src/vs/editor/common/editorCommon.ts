@@ -677,7 +677,7 @@ export interface IThemeDecorationRenderOptions {
 export interface IConcealDecorationRenderOptions {
 	replacement?: IContentDecorationRenderOptions;
 	preserveWidth?: boolean;
-	anchor?: 'before' | 'after' | 'lineEnd';
+	anchor?: 'before' | 'after';
 	deletionPolicy?: 'atomic' | 'protect' | 'reveal';
 }
 

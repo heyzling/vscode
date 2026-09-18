@@ -401,8 +401,8 @@ export interface ConcealedTextOptions {
 
 	/**
 	 * Which text the concealed range belongs to: which end of the range its one caret stop
-	 * stands for when nothing is drawn, and where a line break or whitespace typed at that
-	 * stop lands, drawn or not.
+	 * stands for when nothing is drawn, and where a line break typed at that stop lands,
+	 * drawn or not.
 	 *
 	 * Defaults to {@link ConcealedTextAnchor.Auto}.
 	 */
@@ -427,16 +427,14 @@ export function concealedTextCaretStop(options: ConcealedTextOptions): Concealed
 	}
 	const anchor = options.anchor ?? ConcealedTextAnchor.Auto;
 	const hasReplacement = !!options.replacement && options.replacement.content.length > 0;
-	// A drawn range has a side per end; a line suffix has its one stop in front, as a closing delimiter.
-	return hasReplacement ? ConcealedTextAnchor.After
-		: anchor === ConcealedTextAnchor.LineEnd ? ConcealedTextAnchor.Before
-			: anchor;
+	// A drawn range has a side per end.
+	return hasReplacement ? ConcealedTextAnchor.After : anchor;
 }
 
 /**
  * Which text a concealed range belongs to. With no {@link ConcealedTextOptions.replacement} it
  * fixes the range's one caret stop; a replacement has a side per end. Drawn or not, it decides
- * where a line break or whitespace typed at the stop on its side lands.
+ * where a line break typed at the stop on its side lands.
  * @internal
  */
 export enum ConcealedTextAnchor {
@@ -447,21 +445,15 @@ export enum ConcealedTextAnchor {
 	 */
 	Auto,
 	/**
-	 * The text in front of the range, as a closing delimiter. The stop is the range's start:
-	 * typed characters land in front of the range, a line break or whitespace behind it.
+	 * The text in front of the range, as a closing delimiter or a line suffix. The stop is the
+	 * range's start: typed characters land in front of the range, a line break behind it.
 	 */
 	Before,
 	/**
 	 * The text behind the range, as an opening delimiter or a line prefix. The stop is the
-	 * range's end: typed characters land behind the range, a line break or whitespace in front
-	 * of it.
+	 * range's end: typed characters land behind the range, a line break in front of it.
 	 */
 	After,
-	/**
-	 * The end of the line, as a suffix nothing follows. The stop is the range's start: typed
-	 * characters and whitespace land in front of the range, a line break behind it.
-	 */
-	LineEnd,
 }
 
 /**

@@ -398,7 +398,7 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('a line break or whitespace typed at a declared stop lands outside the construct', () => {
+	test('a line break typed at a declared stop lands outside the construct; whitespace lands at the stop like any character', () => {
 		// `aa **bold** zz` with both markers concealed: the opening one stops behind itself, the closing one in front.
 		const withEmphasis = (callback: (editor: ITestCodeEditor, viewModel: ViewModel) => void) => {
 			withTestCodeEditor('aa **bold** zz', {}, (editor, viewModel) => {
@@ -423,8 +423,8 @@ suite('Editor Controller - Concealed Text', () => {
 		withEmphasis((editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 10);
 			viewModel.type(' ', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa **bold**  zz', 'a space there separates words outside the emphasis');
-			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 13));
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa **bold ** zz', 'a space there stays inside the emphasis, the extension decides otherwise');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 11));
 		});
 
 		withEmphasis((editor, viewModel) => {
@@ -437,7 +437,7 @@ suite('Editor Controller - Concealed Text', () => {
 		withEmphasis((editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 6);
 			viewModel.type(' ', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa  **bold** zz', 'a space there goes in front of the emphasis');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa ** bold** zz', 'a space there stays inside the emphasis too');
 			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 7));
 		});
 
@@ -449,7 +449,7 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('a line prefix anchored after: text lands behind the range, a line break or indentation in front of it', () => {
+	test('a line prefix anchored after: text and indentation land behind the range, a line break in front of it', () => {
 		const anchored: ConcealedTextOptions = { anchor: ConcealedTextAnchor.After, deletionPolicy: ConcealedTextDeletionPolicy.Protect };
 
 		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
@@ -471,12 +471,10 @@ suite('Editor Controller - Concealed Text', () => {
 		withConcealedRange(ID_LINE, ID, anchored, {}, (editor, viewModel) => {
 			CoreNavigationCommands.CursorHome.runCoreEditorCommand(viewModel, {});
 			editor.runCommand(CoreEditingCommands.Tab, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), '   ^ab12cd note text', 'an indent goes in front of the id');
-			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 12));
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd  note text', 'an indent lands at the stop, behind the id, like any character');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 10));
 			viewModel.type(' ', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getLineContent(1), '    ^ab12cd note text', 'so does typed whitespace');
-			editor.runCommand(CoreEditingCommands.DeleteLeft, null);
-			assert.strictEqual(editor.getModel()!.getLineContent(1), '   ^ab12cd note text', 'and Backspace takes it back over the protected id');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), '^ab12cd   note text', 'so does typed whitespace');
 		});
 
 		withConcealedRange('   ^ab12cd note', new Range(1, 4, 1, 12), anchored, {}, (editor, viewModel) => {
@@ -504,11 +502,11 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('a line suffix anchored to the line end: text and whitespace land in front of the range, a line break behind it', () => {
+	test('a line suffix anchored before: text and whitespace land in front of the range, a line break behind it', () => {
 		// ` ^ab12cd` at columns 10..18, nothing drawn.
 		const line = 'note text ^ab12cd';
 		const id = new Range(1, 10, 1, 18);
-		const anchored: ConcealedTextOptions = { anchor: ConcealedTextAnchor.LineEnd, deletionPolicy: ConcealedTextDeletionPolicy.Protect };
+		const anchored: ConcealedTextOptions = { anchor: ConcealedTextAnchor.Before, deletionPolicy: ConcealedTextDeletionPolicy.Protect };
 
 		withConcealedRange(line, id, anchored, {}, (editor, viewModel) => {
 			CoreNavigationCommands.CursorEnd.runCoreEditorCommand(viewModel, {});
@@ -525,7 +523,7 @@ suite('Editor Controller - Concealed Text', () => {
 		withConcealedRange(line, id, anchored, {}, (editor, viewModel) => {
 			CoreNavigationCommands.CursorEnd.runCoreEditorCommand(viewModel, {});
 			viewModel.type(' ', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'note text  ^ab12cd', 'typed whitespace stays in front of the id, unlike at a closing delimiter');
+			assert.strictEqual(editor.getModel()!.getLineContent(1), 'note text  ^ab12cd', 'typed whitespace stays in front of the id');
 			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 11));
 		});
 
@@ -544,7 +542,7 @@ suite('Editor Controller - Concealed Text', () => {
 		});
 	});
 
-	test('a drawn range has a side per end, and keeps the anchor\'s rule for a line break or whitespace typed on the anchored side', () => {
+	test('a drawn range has a side per end, and keeps the anchor\'s rule for a line break typed on the anchored side', () => {
 		withConcealedRange(ID_LINE, ID, { replacement: { content: '#' }, anchor: ConcealedTextAnchor.After }, {}, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 1);
 			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 1), 'a drawn badge has a place in front of it');
@@ -559,9 +557,9 @@ suite('Editor Controller - Concealed Text', () => {
 
 		withConcealedRange('aa **bold** zz', new Range(1, 10, 1, 12), { replacement: { content: '\u203a' }, anchor: ConcealedTextAnchor.Before }, {}, (editor, viewModel) => {
 			moveTo(editor, viewModel, 1, 10);
-			viewModel.type(' ', 'keyboard');
-			assert.strictEqual(editor.getModel()!.getLineContent(1), 'aa **bold**  zz', 'a space in front of a drawn closing delimiter lands behind it');
-			assert.deepStrictEqual(viewModel.getPosition(), new Position(1, 13));
+			viewModel.type('\n', 'keyboard');
+			assert.strictEqual(editor.getModel()!.getValue(), 'aa **bold**\n zz', 'a line break in front of a drawn closing delimiter goes behind it');
+			assert.deepStrictEqual(viewModel.getPosition(), new Position(2, 1));
 		});
 	});
 

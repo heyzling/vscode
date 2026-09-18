@@ -44,12 +44,12 @@ declare module 'vscode' {
 
 		/**
 		 * Which text a concealed range belongs to. Fixes the one place the cursor stops at a
-		 * range with nothing drawn in its place, and where a line break or whitespace typed at
-		 * the stop lands. Typed characters land at the stop. Defaults to {@link ConcealAnchor.Auto}.
+		 * range with nothing drawn in its place, and where a line break typed at the stop
+		 * lands. Typed characters land at the stop. Defaults to {@link ConcealAnchor.Auto}.
 		 *
-		 * A range with a replacement has a stop on each side of it; a line break or whitespace
-		 * typed at the stop on the anchor's side still lands past the range. A paste at the stop
-		 * is split the same way at its line breaks.
+		 * A range with a replacement has a stop on each side of it; a line break typed at the
+		 * stop on the anchor's side still lands past the range. A paste at the stop is split the
+		 * same way at its line breaks.
 		 */
 		anchor?: ConcealAnchor;
 
@@ -70,20 +70,15 @@ declare module 'vscode' {
 		 */
 		Auto = 0,
 		/**
-		 * The text in front of the range, as a closing delimiter. The stop is the range's start;
-		 * a line break or whitespace lands behind the range.
+		 * The text in front of the range, as a closing delimiter or a line suffix. The stop is
+		 * the range's start; a line break lands behind the range.
 		 */
 		Before = 1,
 		/**
 		 * The text behind the range, as an opening delimiter or a line prefix. The stop is the
-		 * range's end; a line break or whitespace lands in front of the range.
+		 * range's end; a line break lands in front of the range.
 		 */
-		After = 2,
-		/**
-		 * The end of the line, as a suffix nothing follows. The stop is the range's start; a line
-		 * break lands behind the range, whitespace in front of it.
-		 */
-		LineEnd = 3
+		After = 2
 	}
 
 	/**

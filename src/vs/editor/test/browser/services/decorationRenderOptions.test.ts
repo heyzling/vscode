@@ -59,9 +59,9 @@ suite('Decoration Render Options', () => {
 	test('a conceal anchor reaches the model, with or without a replacement', () => {
 		const s = store.add(new TestCodeEditorService(themeServiceMock));
 		store.add(s.registerDecorationType('test', 'conceal-anchor-after', { conceal: { anchor: 'after' } }));
-		store.add(s.registerDecorationType('test', 'conceal-anchor-end', { conceal: { anchor: 'lineEnd', replacement: { contentText: 'id' } } }));
+		store.add(s.registerDecorationType('test', 'conceal-anchor-before', { conceal: { anchor: 'before', replacement: { contentText: 'id' } } }));
 		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-after', false).concealedText?.anchor, ConcealedTextAnchor.After);
-		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-end', false).concealedText?.anchor, ConcealedTextAnchor.LineEnd);
+		assert.strictEqual(s.resolveDecorationOptions('conceal-anchor-before', false).concealedText?.anchor, ConcealedTextAnchor.Before);
 	});
 
 	test('per-range conceal replacements at scale keep subtype registration bounded', () => {

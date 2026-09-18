@@ -24,7 +24,7 @@ import { createScopedLineTokens } from '../languages/supports.js';
 import { getIndentActionForType, getIndentForEnter, getInheritIndentForLine } from '../languages/autoIndent.js';
 import { getEnterAction } from '../languages/enterAction.js';
 import { CompositionOutcome } from './cursorTypeOperations.js';
-import { positionPastConcealedTextFor } from './cursorConcealedText.js';
+import { lineBreakPositionPastConcealedText } from './cursorConcealedText.js';
 import { SplitPasteCommand } from '../commands/splitPasteCommand.js';
 
 export class AutoIndentOperation {
@@ -534,14 +534,14 @@ export class EnterOperation {
 	}
 
 	/**
-	 * A line break at a concealed range's caret stop goes past the range, outside its construct.
+	 * A line break at a concealed range's caret stop goes past the range, on the far side of its text.
 	 */
 	private static _enterOutsideConcealedText(config: CursorConfiguration, model: ITextModel, keepPosition: boolean, range: Range): ICommand {
 		if (!range.isEmpty()) {
 			return this._enter(config, model, keepPosition, range);
 		}
 		const position = range.getStartPosition();
-		const breakPosition = positionPastConcealedTextFor('lineBreak', position, model, config.concealEnabled);
+		const breakPosition = lineBreakPositionPastConcealedText(position, model, config.concealEnabled);
 		if (breakPosition.equals(position)) {
 			return this._enter(config, model, keepPosition, range);
 		}
@@ -738,7 +738,7 @@ export class PasteOperation {
 				pasteOnNewLine = false;
 			}
 			const breakPosition = selection.isEmpty() && text.indexOf('\n') !== -1
-				? positionPastConcealedTextFor('lineBreak', position, model, config.concealEnabled)
+				? lineBreakPositionPastConcealedText(position, model, config.concealEnabled)
 				: position;
 			if (pasteOnNewLine) {
 				// Paste entire line at the beginning of line
@@ -804,9 +804,8 @@ export class TabOperation {
 	public static getCommands(config: CursorConfiguration, model: ITextModel, selections: Selection[]) {
 		const commands: ICommand[] = [];
 		for (let i = 0, len = selections.length; i < len; i++) {
-			let selection = selections[i];
+			const selection = selections[i];
 			if (selection.isEmpty()) {
-				selection = Selection.fromPositions(positionPastConcealedTextFor('whitespace', selection.getPosition(), model, config.concealEnabled));
 				const lineText = model.getLineContent(selection.startLineNumber);
 				if (/^\s*$/.test(lineText) && model.tokenization.isCheapToTokenize(selection.startLineNumber)) {
 					let goodIndent = this._goodIndentForLine(config, model, selection.startLineNumber);
