@@ -434,9 +434,9 @@ export function concealedTextCaretStop(options: ConcealedTextOptions): Concealed
 }
 
 /**
- * Which text a concealed range belongs to. {@link Auto}, {@link Before} and {@link After} are
- * read only with no {@link ConcealedTextOptions.replacement}, which has a side per end;
- * {@link LineStart} and {@link LineEnd} apply drawn or not.
+ * Which text a concealed range belongs to. With no {@link ConcealedTextOptions.replacement} it
+ * fixes the range's one caret stop; a replacement has a side per end. Drawn or not, it decides
+ * where a line break or whitespace typed at the stop on its side lands.
  * @internal
  */
 export enum ConcealedTextAnchor {
