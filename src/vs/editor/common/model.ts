@@ -387,12 +387,6 @@ export interface ConcealedTextOptions {
 	readonly replacement?: InjectedTextOptions | null;
 
 	/**
-	 * If set, the {@link replacement} is drawn at the rendered width of the concealed text:
-	 * padded when narrower, clipped with `…` when wider. Defaults to false.
-	 */
-	readonly preserveWidth?: boolean;
-
-	/**
 	 * What Backspace, Delete and the word deletes do at the concealed range.
 	 *
 	 * Defaults to {@link ConcealedTextDeletionPolicy.Atomic}.

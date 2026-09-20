@@ -356,7 +356,7 @@ function createLineBreaksFromPreviousLineBreaks(classifier: WrappingCharacterCla
 }
 
 function createLineBreaks(classifier: WrappingCharacterClassifier, _lineText: string, injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null, tabSize: number, firstLineBreakColumn: number, columnsForFullWidthChar: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll', wrapOnEscapedLineFeeds: boolean): ModelLineProjectionData | null {
-	const changes = computeProjectedLineChanges(injectedTexts, concealedTexts, _lineText);
+	const changes = computeProjectedLineChanges(injectedTexts, concealedTexts);
 	const lineText = applyProjectedLineChanges(_lineText, changes);
 
 	const { injectionOffsets, injectionOptions, concealed } = changes;

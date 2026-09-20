@@ -4,8 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 
 import { assertNever } from '../../base/common/assert.js';
-import { Lazy } from '../../base/common/lazy.js';
-import * as strings from '../../base/common/strings.js';
 import { Constants } from '../../base/common/uint.js';
 import { WrappingIndent } from './config/editorOptions.js';
 import { FontInfo } from './config/fontInfo.js';
@@ -542,55 +540,12 @@ export interface IProjectedLineChanges {
 	readonly concealed: ConcealedSpans | null;
 }
 
-const graphemeSegmenter = new Lazy(() => new Intl.Segmenter(undefined, { granularity: 'grapheme' }));
-
-/**
- * Rendered width in cells of a grapheme starting with the code point: full-width and emoji count two, a tab one.
- */
-function graphemeCells(codePoint: number): 1 | 2 {
-	return (strings.isFullWidthCharacter(codePoint) || strings.isEmojiImprecise(codePoint)) ? 2 : 1;
-}
-
-function textCellWidth(text: string): number {
-	let cells = 0;
-	for (const segment of graphemeSegmenter.value.segment(text)) {
-		cells += graphemeCells(segment.segment.codePointAt(0)!);
-	}
-	return cells;
-}
-
-/**
- * Fits text to exactly `cells` rendered cells: padded with spaces when narrower, clipped at a
- * grapheme boundary and marked with a trailing `…` when wider.
- */
-function fitToCellWidth(text: string, cells: number): string {
-	const width = textCellWidth(text);
-	if (width === cells) {
-		return text;
-	}
-	if (width < cells) {
-		return text + ' '.repeat(cells - width);
-	}
-	let taken = 0;
-	let end = 0;
-	for (const segment of graphemeSegmenter.value.segment(text)) {
-		const graphemeWidth = graphemeCells(segment.segment.codePointAt(0)!);
-		if (taken + graphemeWidth > cells - 1) {
-			break;
-		}
-		taken += graphemeWidth;
-		end = segment.index + segment.segment.length;
-	}
-	const result = text.substring(0, end) + '…';
-	return taken + 1 < cells ? result + ' '.repeat(cells - taken - 1) : result;
-}
-
 /**
  * Turns a line's concealed and injected text into the offsets a {@link ModelLineProjectionData}
  * is built from: injected text strictly inside a concealed range is dropped, and a replacement is
  * injected at its range start, after text already injected there.
  */
-export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null, lineText: string = ''): IProjectedLineChanges {
+export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | null, concealedTexts: LineConcealedText[] | null): IProjectedLineChanges {
 	if (!concealedTexts || concealedTexts.length === 0) {
 		if (!injectedTexts || injectedTexts.length === 0) {
 			return { injectionOffsets: null, injectionOptions: null, concealed: null };
@@ -628,10 +583,7 @@ export function computeProjectedLineChanges(injectedTexts: LineInjectedText[] | 
 		const hasReplacement = !!replacement && replacement.content.length > 0;
 		if (hasReplacement) {
 			injectionOffsets.push(startOffset);
-			// Drawn at the concealed text's rendered width: padded when narrower, clipped when wider.
-			injectionOptions.push(concealedText.options.preserveWidth
-				? { ...replacement, content: fitToCellWidth(replacement.content, textCellWidth(lineText.substring(startOffset, endOffset))) }
-				: replacement);
+			injectionOptions.push(replacement);
 		}
 
 		concealStops.push(concealedTextCaretStop(concealedText.options));

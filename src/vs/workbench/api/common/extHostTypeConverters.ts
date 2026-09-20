@@ -588,8 +588,7 @@ export namespace ConcealRenderOptions {
 			return { anchor, deletionPolicy };
 		}
 		const replacement = ThemableDecorationAttachmentRenderOptions.from(options.replacement);
-		const preserveWidth = options.preserveWidth === true ? true : undefined;
-		return { replacement, preserveWidth, anchor, deletionPolicy };
+		return { replacement, anchor, deletionPolicy };
 	}
 }
 

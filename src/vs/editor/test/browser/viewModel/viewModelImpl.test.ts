@@ -466,59 +466,6 @@ suite('ViewModel', () => {
 		);
 	});
 
-	test('preserveWidth pads a narrower replacement, so following text never moves', () => {
-		testViewModel(
-			[
-				'K=Qwerty123 #c'
-			],
-			{},
-			(viewModel, model) => {
-				model.deltaDecorations([], [{
-					range: new Range(1, 3, 1, 12),
-					options: { description: 'test', concealedText: { replacement: { content: '••••' }, preserveWidth: true } }
-				}]);
-
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'K=••••      #c');
-			}
-		);
-	});
-
-	test('preserveWidth clips a wider replacement to the hidden width, marked with an ellipsis', () => {
-		testViewModel(
-			[
-				'x t(\'a\') y'
-			],
-			{},
-			(viewModel, model) => {
-				model.deltaDecorations([], [{
-					// Six hidden cells, eleven drawn.
-					range: new Range(1, 3, 1, 9),
-					options: { description: 'test', concealedText: { replacement: { content: 'Place order' }, preserveWidth: true } }
-				}]);
-
-				assert.deepStrictEqual(viewModel.getLineContent(1), 'x Place… y');
-			}
-		);
-	});
-
-	test('preserveWidth measures cells, not characters', () => {
-		testViewModel(
-			[
-				'abcd tail'
-			],
-			{},
-			(viewModel, model) => {
-				model.deltaDecorations([], [{
-					// `✅` is one grapheme but two cells.
-					range: new Range(1, 1, 1, 5),
-					options: { description: 'test', concealedText: { replacement: { content: '✅' }, preserveWidth: true } }
-				}]);
-
-				assert.deepStrictEqual(viewModel.getLineContent(1), '✅   tail');
-			}
-		);
-	});
-
 	test('an emoji replacement takes an ASCII line off the ASCII rendering path', () => {
 		testViewModel(
 			[

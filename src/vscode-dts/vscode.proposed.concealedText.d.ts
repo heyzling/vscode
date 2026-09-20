@@ -36,13 +36,6 @@ declare module 'vscode' {
 		replacement?: ThemableDecorationAttachmentRenderOptions;
 
 		/**
-		 * Draw the replacement at the rendered width of the text it stands for: padded when
-		 * narrower, clipped with `…` when wider. Width is measured in rendered cells, a tab as one.
-		 * Defaults to `false`.
-		 */
-		preserveWidth?: boolean;
-
-		/**
 		 * Which text a concealed range belongs to. Fixes the one place the cursor stops at a
 		 * range with nothing drawn in its place, and where a line break typed at the stop
 		 * lands. Typed characters land at the stop. Defaults to {@link ConcealAnchor.Auto}.

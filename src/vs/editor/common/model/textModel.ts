@@ -2570,7 +2570,6 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 
 	readonly replacement: ModelDecorationInjectedTextOptions | null;
 	readonly anchor: model.ConcealedTextAnchor;
-	readonly preserveWidth: boolean;
 	readonly deletionPolicy: model.ConcealedTextDeletionPolicy;
 	readonly caretStop: model.ConcealedTextAnchor;
 
@@ -2582,7 +2581,6 @@ export class ModelDecorationConcealedTextOptions implements model.ConcealedTextO
 		}
 		this.replacement = replacement ? ModelDecorationInjectedTextOptions.from(replacement) : null;
 		this.anchor = options.anchor ?? model.ConcealedTextAnchor.Auto;
-		this.preserveWidth = options.preserveWidth ?? false;
 		this.deletionPolicy = options.deletionPolicy ?? model.ConcealedTextDeletionPolicy.Atomic;
 		this.caretStop = model.concealedTextCaretStop({ anchor: this.anchor, replacement: this.replacement });
 	}

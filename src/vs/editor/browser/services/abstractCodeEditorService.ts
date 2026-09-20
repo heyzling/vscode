@@ -555,7 +555,6 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 				: providerArgs.options.conceal.deletionPolicy === 'reveal' ? ConcealedTextDeletionPolicy.Reveal
 					: ConcealedTextDeletionPolicy.Atomic;
 			const replacement = providerArgs.options.conceal.replacement;
-			const preserveWidth = providerArgs.options.conceal.preserveWidth === true;
 			if (replacement && replacement.contentText) {
 				const replacementInlineData = createInlineCSSRules(ModelDecorationCSSRuleType.ConcealReplacementClassName);
 				this.concealedText = {
@@ -564,7 +563,6 @@ class DecorationTypeOptionsProvider implements IModelDecorationOptionsProvider {
 						inlineClassName: replacementInlineData?.className,
 						inlineClassNameAffectsLetterSpacing: replacementInlineData?.hasLetterSpacing
 					},
-					preserveWidth,
 					anchor,
 					deletionPolicy
 				};

@@ -39,7 +39,7 @@ export class DOMLineBreaksComputerFactory implements ILineBreaksComputerFactory 
 
 function projectedLineChanges(context: ILineBreaksComputerContext, lineNumber: number): IProjectedLineChanges {
 	const { injectedText, concealedText } = context.getLineProjectedText(lineNumber);
-	return computeProjectedLineChanges(injectedText, concealedText, context.getLineContent(lineNumber));
+	return computeProjectedLineChanges(injectedText, concealedText);
 }
 
 function createLineBreaks(targetWindow: Window, context: ILineBreaksComputerContext, lineNumbers: number[], fontInfo: FontInfo, tabSize: number, firstLineBreakColumn: number, wrappingIndent: WrappingIndent, wordBreak: 'normal' | 'keepAll'): (ModelLineProjectionData | null)[] {
